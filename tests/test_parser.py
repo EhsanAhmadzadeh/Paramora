@@ -117,7 +117,7 @@ def test_float_values_are_coerced_for_declared_numeric_fields(
 def test_boolean_values_are_coerced_case_insensitively(
     make_item_query: Callable[..., Query],
     raw_value: str,
-    expected_value: bool,
+    expected_value: bool,  # noqa: FBT001
 ) -> None:
     # Arrange
     query = make_item_query()

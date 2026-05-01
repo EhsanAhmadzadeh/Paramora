@@ -37,9 +37,9 @@ def _coerce_typed_value(
         return _coerce_enum(type_, raw, param_name)
 
     try:
-        value = _coerce_known_type(type_, raw, param_name)
+        value = _coerce_known_type(type_, raw, param_name) # type: ignore
     except ValueError:
-        type_name = _type_name(type_)
+        type_name = _type_name(type_) # type: ignore
         return None, type_error(param_name, type_name, raw)
     return value, None
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from .coercion import coerce_list, coerce_value
 from .errors import (
@@ -38,7 +39,9 @@ from .query_ast import (
     SortDirection,
     SortNode,
 )
-from .query_modes import QueryMode
+
+if TYPE_CHECKING:
+    from .query_modes import QueryMode
 
 RESERVED_PARAMS = {"sort", "limit", "offset"}
 LIST_OPERATORS: frozenset[FilterOperator] = frozenset({"in", "nin"})
@@ -69,12 +72,12 @@ def normalize_params(
         A dictionary using the last value when a parameter is repeated.
     """
     normalized: dict[str, str] = {}
-    items_iter = params.items() if isinstance(params, Mapping) else params
-    for key, value in items_iter:
+    items_iter = params.items() if isinstance(params, Mapping) else params # type: ignore
+    for key, value in items_iter: # type: ignore
         if isinstance(value, str):
             normalized[str(key)] = value
         else:
-            values = list(value)
+            values = list(value) # type: ignore
             if values:
                 normalized[str(key)] = str(values[-1])
     return normalized

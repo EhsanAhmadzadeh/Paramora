@@ -25,7 +25,7 @@ def create_items_client(query_dependency: Query) -> TestClient:
     app = FastAPI()
 
     @app.get(ITEMS_PATH)
-    def list_items(query: CompiledQuery = Depends(query_dependency)) -> object:
+    def list_items(query: CompiledQuery = Depends(query_dependency)) -> object:  # type: ignore # noqa: B008
         """Return the compiled Mongo filter for the current request."""
         return query.to_mongo().filter
 

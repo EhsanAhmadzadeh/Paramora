@@ -58,7 +58,7 @@ def contract_fields(contract: type[QueryContract]) -> Mapping[str, QueryField]:
         ValueError: Raised when a contract field uses an unsupported default or
             contains more than one ``query_field(...)`` metadata object.
     """
-    if not isinstance(contract, type) or not issubclass(contract, QueryContract):
+    if not isinstance(contract, type) or not issubclass(contract, QueryContract): # type: ignore
         raise TypeError("contract must be a QueryContract subclass.")
 
     resolved: dict[str, QueryField] = {}

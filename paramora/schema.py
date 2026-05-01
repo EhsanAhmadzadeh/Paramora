@@ -7,19 +7,22 @@ is meant to be passed directly to ``fastapi.Depends``.
 """
 
 from dataclasses import dataclass
-from collections.abc import Mapping, Sequence
-from typing import Self
+from typing import TYPE_CHECKING, Self
 
 from fastapi import HTTPException, Request
 
 from .contracts import QueryContract, contract_fields
-from .emitters.base import QueryEmitter
 from .emitters.mongo import MongoEmitter, MongoQuery
 from .errors import QueryValidationError
-from .fields import QueryField
-from .query_ast import QueryAst
-from .query_modes import QueryMode
 from .query_parser import QueryParser
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
+
+    from .emitters.base import QueryEmitter
+    from .fields import QueryField
+    from .query_ast import QueryAst
+    from .query_modes import QueryMode
 
 
 @dataclass(frozen=True, slots=True)

@@ -16,9 +16,10 @@ Example:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TypeIs
+from typing import TYPE_CHECKING, TypeIs
 
-from .query_ast import FilterOperator
+if TYPE_CHECKING:
+    from .query_ast import FilterOperator
 
 type FieldType = type | str
 

@@ -9,9 +9,11 @@ with a documented compatibility note.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal, NotRequired, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict, TYPE_CHECKING
 
-from .query_ast import FilterOperator
+
+if TYPE_CHECKING:
+    from .query_ast import FilterOperator
 
 type QueryErrorCode = Literal[
     "query.empty_list",
