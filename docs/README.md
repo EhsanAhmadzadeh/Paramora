@@ -1,8 +1,8 @@
 # Paramora documentation
 
 This directory contains the user and contributor documentation for Paramora.
-The README is the package landing page; these files provide the more detailed
-material that developers need when adopting or contributing to the project.
+The README is the package landing page; these files provide more detailed
+material for developers adopting or contributing to the project.
 
 - [Quickstart](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/quickstart.md)
 - [Query contracts](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/contracts.md)

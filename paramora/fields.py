@@ -16,7 +16,7 @@ Example:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, TypeIs
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .query_ast import FilterOperator
@@ -27,15 +27,6 @@ DEFAULT_OPERATORS: frozenset[FilterOperator] = frozenset({"eq"})
 KNOWN_OPERATORS: frozenset[FilterOperator] = frozenset(
     {"eq", "ne", "gt", "gte", "lt", "lte", "in", "nin"}
 )
-
-
-def is_known_operator(value: str) -> TypeIs[FilterOperator]:
-    """Return whether ``value`` is a supported Paramora filter operator.
-
-    The ``TypeIs`` return type lets Pyright and other type checkers narrow a
-    raw query-string suffix to ``FilterOperator`` after validation.
-    """
-    return value in KNOWN_OPERATORS
 
 
 @dataclass(frozen=True, slots=True)

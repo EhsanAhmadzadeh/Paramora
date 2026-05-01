@@ -46,6 +46,3 @@ Each error contains:
 - `query.unknown_operator`
 - `query.unknown_sort_field`
 - `query.value_error.non_negative`
-
-New codes may be added as Paramora grows. Existing codes should remain stable
-or change only with an explicit compatibility note.

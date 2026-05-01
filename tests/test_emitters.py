@@ -16,7 +16,6 @@ if TYPE_CHECKING:
 class DebugQuery:
     filter_count: int
     sort_count: int
-    field_count: int
     limit: int
 
 
@@ -25,7 +24,6 @@ class DebugEmitter:
         return DebugQuery(
             filter_count=len(ast.filters),
             sort_count=len(ast.sort),
-            field_count=len(fields),
             limit=ast.pagination.limit,
         )
 
@@ -40,9 +38,4 @@ def test_custom_generic_emitter_can_compile_query_ast() -> None:
     debug_query = compiled.to(emitter)
 
     # Assert
-    assert debug_query == DebugQuery(
-        filter_count=1,
-        sort_count=1,
-        field_count=0,
-        limit=25,
-    )
+    assert debug_query == DebugQuery(filter_count=1, sort_count=1, limit=25)

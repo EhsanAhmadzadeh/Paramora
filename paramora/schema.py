@@ -7,22 +7,22 @@ is meant to be passed directly to ``fastapi.Depends``.
 """
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Self
+from collections.abc import Mapping, Sequence
+from typing import Self
 
 from fastapi import HTTPException, Request
 
+from .compiled import CompiledContract, compile_contract
 from .contracts import QueryContract, contract_fields
+from .emitters.base import QueryEmitter
 from .emitters.mongo import MongoEmitter, MongoQuery
 from .errors import QueryValidationError
+from .fields import QueryField
+from .query_ast import QueryAst
+from .query_modes import QueryMode
 from .query_parser import QueryParser
 
-if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
-
-    from .emitters.base import QueryEmitter
-    from .fields import QueryField
-    from .query_ast import QueryAst
-    from .query_modes import QueryMode
+_MONGO_EMITTER = MongoEmitter()
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,10 +32,12 @@ class CompiledQuery:
     Args:
         ast: Backend-neutral AST.
         fields: Field declarations used for alias resolution during emission.
+        contract: Compiled hot-path contract metadata.
     """
 
     ast: QueryAst
     fields: Mapping[str, QueryField]
+    contract: CompiledContract
 
     def to[QueryOutputT](self, emitter: QueryEmitter[QueryOutputT]) -> QueryOutputT:
         """Compile this query with a backend emitter.
@@ -54,7 +56,7 @@ class CompiledQuery:
         Returns:
             A MongoDB query object containing filter, sort, limit, and offset.
         """
-        return self.to(MongoEmitter())
+        return _MONGO_EMITTER.emit_compiled(self.ast, self.contract)
 
 
 class Query:
@@ -72,9 +74,11 @@ class Query:
 
     contract: type[QueryContract] | None
     fields: Mapping[str, QueryField]
+    compiled_contract: CompiledContract
     default_limit: int
     max_limit: int
     mode: QueryMode
+    _parser: QueryParser
 
     def __init__(
         self,
@@ -98,11 +102,19 @@ class Query:
         if resolved_mode == "strict" and not fields:
             raise ValueError("Strict mode requires a QueryContract.")
 
+        compiled_contract = compile_contract(fields)
         self.contract = contract
         self.fields = fields
+        self.compiled_contract = compiled_contract
         self.default_limit = default_limit
         self.max_limit = max_limit
         self.mode = resolved_mode
+        self._parser = QueryParser(
+            contract=compiled_contract,
+            default_limit=default_limit,
+            max_limit=max_limit,
+            mode=resolved_mode,
+        )
 
     def __call__(self, request: Request) -> CompiledQuery:
         """Compile the current FastAPI request query parameters.
@@ -132,14 +144,12 @@ class Query:
         Returns:
             A compiled query wrapper.
         """
-        ast = QueryParser().parse(
-            params,
+        ast = self._parser.parse(params)
+        return CompiledQuery(
+            ast=ast,
             fields=self.fields,
-            default_limit=self.default_limit,
-            max_limit=self.max_limit,
-            mode=self.mode,
+            contract=self.compiled_contract,
         )
-        return CompiledQuery(ast=ast, fields=self.fields)
 
     def with_mode(self, mode: QueryMode) -> Self:
         """Return a copy of this query compiler using another validation mode.

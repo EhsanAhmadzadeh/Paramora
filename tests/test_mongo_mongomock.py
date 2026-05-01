@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from importlib import import_module
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
+import mongomock
 import pytest
 
 if TYPE_CHECKING:
@@ -11,8 +11,6 @@ if TYPE_CHECKING:
 
     from paramora import Query
     from paramora.emitters.mongo import MongoQuery
-
-mongomock = cast("Any", import_module("mongomock"))
 
 
 @pytest.fixture

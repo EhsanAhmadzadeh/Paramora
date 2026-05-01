@@ -1,36 +1,21 @@
-"""Query-string parser for Paramora contracts.
+"""Optimized query-string parser for Paramora contracts.
 
-This module turns normalized HTTP query parameters into the backend-neutral
-``QueryAst``. It is intentionally backend-agnostic: no MongoDB operators or
-backend query objects should be produced here.
+The parser consumes precompiled contract metadata so request-time parsing avoids
+repeated type dispatch and repeated schema introspection.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, TypeIs
 
-from .coercion import coerce_list, coerce_value
-from .errors import (
-    QueryErrorDetail,
-    QueryValidationError,
-    empty_list,
-    invalid_filter_field,
-    invalid_filter_operator,
-    invalid_sort_field,
-    limit_too_large,
-    non_negative_int_type,
-    non_negative_int_value,
-    operator_not_allowed,
-    raw_operator_not_allowed,
-    required_field,
-    sort_not_allowed,
-    unknown_field,
-    unknown_operator,
-    unknown_sort_field,
+from .compiled import (
+    STRING_LIST_COERCER,
+    STRING_SCALAR_COERCER,
+    CompiledContract,
+    CompiledField,
 )
-from .fields import QueryField, is_known_operator
+from .errors import QueryErrorDetail, QueryValidationError
 from .query_ast import (
     FilterNode,
     FilterOperator,
@@ -43,16 +28,26 @@ from .query_ast import (
 if TYPE_CHECKING:
     from .query_modes import QueryMode
 
-RESERVED_PARAMS = {"sort", "limit", "offset"}
+type ScalarCoercer = Callable[[str, str], tuple[Any, QueryErrorDetail | None]]
+type ListCoercer = Callable[[str, str], tuple[list[Any], list[QueryErrorDetail]]]
+type ResolvedCoercers = tuple[ScalarCoercer, ListCoercer]
+type CoercerResolution = tuple[ResolvedCoercers | None, QueryErrorDetail | None]
+type ParsedFilterResult = tuple[
+    FilterNode | None,
+    QueryErrorDetail | None,
+    list[QueryErrorDetail] | None,
+]
+
+RESERVED_PARAMS = frozenset({"sort", "limit", "offset"})
+KNOWN_OPERATORS: frozenset[FilterOperator] = frozenset(
+    {"eq", "ne", "gt", "gte", "lt", "lte", "in", "nin"}
+)
 LIST_OPERATORS: frozenset[FilterOperator] = frozenset({"in", "nin"})
 
-
-@dataclass(frozen=True, slots=True)
-class _ParsedFilters:
-    """Internal parser result for filter parameters."""
-
-    nodes: list[FilterNode]
-    errors: list[QueryErrorDetail]
+STRING_COERCERS: ResolvedCoercers = (
+    STRING_SCALAR_COERCER,
+    STRING_LIST_COERCER,
+)
 
 
 def normalize_params(
@@ -63,46 +58,63 @@ def normalize_params(
     Repeated parameters currently use the last value. This is deliberately
     conservative for 0.1; repeated-parameter policy can become explicit in a
     future release.
-
-    Args:
-        params: Mapping from query names to strings or string sequences, or an
-            iterable of repeated key-value pairs.
-
-    Returns:
-        A dictionary using the last value when a parameter is repeated.
     """
+    if _is_str_dict(params):
+        return params
+
     normalized: dict[str, str] = {}
-    items_iter = params.items() if isinstance(params, Mapping) else params # type: ignore
-    for key, value in items_iter: # type: ignore
-        if isinstance(value, str):
-            normalized[str(key)] = value
-        else:
-            values = list(value) # type: ignore
-            if values:
-                normalized[str(key)] = str(values[-1])
+
+    if isinstance(params, Mapping):
+        for key, value in params.items():
+            if type(value) is str:
+                normalized[str(key)] = value
+            elif value:
+                normalized[str(key)] = str(value[-1])
+        return normalized
+
+    for key, value in params:
+        normalized[str(key)] = value
+
     return normalized
+
+
+def _is_str_dict(value: object) -> TypeIs[dict[str, str]]:
+    if type(value) is not dict:
+        return False
+
+    for key, item in value.items():
+        if type(key) is not str or type(item) is not str:
+            return False
+
+    return True
 
 
 class QueryParser:
     """Parses HTTP query parameters into a backend-neutral AST."""
 
-    def parse(
+    __slots__ = ("contract", "default_limit", "max_limit", "mode")
+
+    def __init__(
         self,
-        params: Mapping[str, str | Sequence[str]] | Iterable[tuple[str, str]],
         *,
-        fields: Mapping[str, QueryField],
+        contract: CompiledContract,
         default_limit: int,
         max_limit: int,
         mode: QueryMode,
+    ) -> None:
+        self.contract = contract
+        self.default_limit = default_limit
+        self.max_limit = max_limit
+        self.mode = mode
+
+    def parse(
+        self,
+        params: Mapping[str, str | Sequence[str]] | Iterable[tuple[str, str]],
     ) -> QueryAst:
         """Parse and validate query parameters.
 
         Args:
             params: Query parameter mapping or repeated key-value pairs.
-            fields: Declared contract fields.
-            default_limit: Limit used when the request omits ``limit``.
-            max_limit: Maximum accepted limit.
-            mode: Query validation mode.
 
         Returns:
             Backend-neutral query AST.
@@ -111,45 +123,236 @@ class QueryParser:
             QueryValidationError: Raised when one or more validation errors occur.
         """
         raw_params = normalize_params(params)
-        parsed_filters = _parse_filters(raw_params, fields=fields, mode=mode)
-        errors = parsed_filters.errors
-        errors.extend(_required_field_errors(fields, parsed_filters.nodes))
+        errors: list[QueryErrorDetail] = []
+        filters: list[FilterNode] = []
+        seen_fields: set[str] = set()
+
+        self._parse_filters(raw_params, filters, seen_fields, errors)
+        self._add_required_field_errors(seen_fields, errors)
 
         sort = parse_sort(
-            raw_params.get("sort"), fields=fields, mode=mode, errors=errors
+            raw_params.get("sort"),
+            contract=self.contract,
+            mode=self.mode,
+            errors=errors,
         )
         pagination = parse_pagination(
-            raw_params, default_limit=default_limit, max_limit=max_limit, errors=errors
+            raw_params,
+            default_limit=self.default_limit,
+            max_limit=self.max_limit,
+            errors=errors,
         )
 
         if errors:
             raise QueryValidationError(errors)
+
         return QueryAst(
-            filters=tuple(parsed_filters.nodes),
+            filters=tuple(filters),
             sort=tuple(sort),
             pagination=pagination,
         )
 
+    def _parse_filters(
+        self,
+        raw_params: Mapping[str, str],
+        filters: list[FilterNode],
+        seen_fields: set[str],
+        errors: list[QueryErrorDetail],
+    ) -> None:
+        fields_get = self.contract.fields.get
+        strict = self.mode == "strict"
+
+        filters_append = filters.append
+        seen_add = seen_fields.add
+        errors_append = errors.append
+        errors_extend = errors.extend
+
+        for param_name, raw_value in raw_params.items():
+            if param_name in RESERVED_PARAMS:
+                continue
+
+            node, error, value_errors = _parse_filter_param(
+                param_name=param_name,
+                raw_value=raw_value,
+                fields_get=fields_get,
+                strict=strict,
+            )
+
+            if error is not None:
+                errors_append(error)
+                continue
+
+            if value_errors is not None:
+                errors_extend(value_errors)
+                continue
+
+            if node is not None:
+                filters_append(node)
+                seen_add(node.field)
+
+    def _add_required_field_errors(
+        self,
+        seen_fields: set[str],
+        errors: list[QueryErrorDetail],
+    ) -> None:
+        errors_append = errors.append
+
+        for required_name in self.contract.required_fields:
+            if required_name not in seen_fields:
+                errors_append(_required_field(required_name))
+
+
+def _parse_filter_param(
+    *,
+    param_name: str,
+    raw_value: str,
+    fields_get: Callable[[str], CompiledField | None],
+    strict: bool,
+) -> ParsedFilterResult:
+    field_name, operator = split_filter_param(param_name)
+
+    error = _filter_shape_error(field_name, operator, param_name, raw_value)
+    if error is not None:
+        return None, error, None
+
+    coercers, error = _resolve_coercers(
+        field_name=field_name,
+        operator=operator,
+        param_name=param_name,
+        raw_value=raw_value,
+        fields_get=fields_get,
+        strict=strict,
+    )
+    if error is not None:
+        return None, error, None
+
+    if coercers is None or not _is_known_operator(operator):
+        return None, _unknown_operator(param_name, operator, raw_value), None
+
+    scalar_coercer, list_coercer = coercers
+
+    match operator:
+        case "in" | "nin":
+            return _parse_list_filter(
+                field_name=field_name,
+                operator=operator,
+                raw_value=raw_value,
+                param_name=param_name,
+                list_coercer=list_coercer,
+            )
+        case _:
+            return _parse_scalar_filter(
+                field_name=field_name,
+                operator=operator,
+                raw_value=raw_value,
+                param_name=param_name,
+                scalar_coercer=scalar_coercer,
+            )
+
+
+def _resolve_coercers(
+    *,
+    field_name: str,
+    operator: str,
+    param_name: str,
+    raw_value: str,
+    fields_get: Callable[[str], CompiledField | None],
+    strict: bool,
+) -> CoercerResolution:
+    declaration = fields_get(field_name)
+
+    match declaration:
+        case None if strict:
+            return None, _unknown_filter_field(param_name, raw_value)
+        case None:
+            return STRING_COERCERS, None
+        case _:
+            return _resolve_declared_coercers(
+                declaration=declaration,
+                field_name=field_name,
+                operator=operator,
+                param_name=param_name,
+                raw_value=raw_value,
+            )
+
+
+def _resolve_declared_coercers(
+    *,
+    declaration: CompiledField,
+    field_name: str,
+    operator: str,
+    param_name: str,
+    raw_value: str,
+) -> CoercerResolution:
+    if not _is_known_operator(operator):
+        return None, _unknown_operator(param_name, operator, raw_value)
+
+    if operator not in declaration.operators:
+        return (
+            None,
+            _operator_not_allowed(
+                param_name,
+                field_name,
+                operator,
+                raw_value,
+            ),
+        )
+
+    return (
+        declaration.scalar_coercer,
+        declaration.list_coercer,
+    ), None
+
+
+def _parse_list_filter(
+    *,
+    field_name: str,
+    operator: FilterOperator,
+    raw_value: str,
+    param_name: str,
+    list_coercer: ListCoercer,
+) -> ParsedFilterResult:
+    values, value_errors = list_coercer(raw_value, param_name)
+
+    if value_errors:
+        return None, None, value_errors
+
+    if not values:
+        return None, _empty_list(param_name, raw_value), None
+
+    return FilterNode(field=field_name, op=operator, value=values), None, None
+
+
+def _parse_scalar_filter(
+    *,
+    field_name: str,
+    operator: FilterOperator,
+    raw_value: str,
+    param_name: str,
+    scalar_coercer: ScalarCoercer,
+) -> ParsedFilterResult:
+    value, error = scalar_coercer(raw_value, param_name)
+
+    if error is not None:
+        return None, error, None
+
+    return FilterNode(field=field_name, op=operator, value=value), None, None
+
 
 def split_filter_param(param_name: str) -> tuple[str, str]:
-    """Split a Django-style filter parameter into field and operator.
+    """Split a Django-style filter parameter into field and operator."""
+    field_name, separator, operator = param_name.rpartition("__")
 
-    Args:
-        param_name: Raw query parameter name.
-
-    Returns:
-        A ``(field, operator)`` pair. Bare fields default to ``eq``.
-    """
-    if "__" not in param_name:
+    if not separator:
         return param_name, "eq"
-    field_name, op = param_name.rsplit("__", 1)
-    return field_name, op
+
+    return field_name, operator
 
 
 def parse_sort(
     raw_sort: str | None,
     *,
-    fields: Mapping[str, QueryField],
+    contract: CompiledContract,
     mode: QueryMode,
     errors: list[QueryErrorDetail],
 ) -> list[SortNode]:
@@ -157,16 +360,48 @@ def parse_sort(
     if not raw_sort:
         return []
 
+    fields = contract.fields
+
+    if "," not in raw_sort:
+        token = raw_sort.strip()
+        if not token:
+            return []
+
+        node = _parse_sort_token(token, raw_sort, fields, mode, errors)
+        return [] if node is None else [node]
+
     nodes: list[SortNode] = []
+    nodes_append = nodes.append
+
     for token in _split_csv(raw_sort):
-        direction: SortDirection = "desc" if token.startswith("-") else "asc"
-        field_name = token[1:] if token.startswith("-") else token
-        error = _sort_field_error(field_name, raw_sort, fields=fields, mode=mode)
-        if error is not None:
-            errors.append(error)
-            continue
-        nodes.append(SortNode(field=field_name, direction=direction))
+        node = _parse_sort_token(token, raw_sort, fields, mode, errors)
+        if node is not None:
+            nodes_append(node)
+
     return nodes
+
+
+def _parse_sort_token(
+    token: str,
+    raw_sort: str,
+    fields: Mapping[str, CompiledField],
+    mode: QueryMode,
+    errors: list[QueryErrorDetail],
+) -> SortNode | None:
+    match token.startswith("-"):
+        case True:
+            direction: SortDirection = "desc"
+            field_name = token[1:]
+        case False:
+            direction = "asc"
+            field_name = token
+
+    error = _sort_field_error(field_name, raw_sort, fields, mode)
+    if error is not None:
+        errors.append(error)
+        return None
+
+    return SortNode(field=field_name, direction=direction)
 
 
 def parse_pagination(
@@ -178,192 +413,216 @@ def parse_pagination(
 ) -> PaginationNode:
     """Parse ``limit`` and ``offset`` query parameters."""
     limit = _parse_non_negative_int(
-        raw_params.get("limit"), "limit", default_limit, errors
+        raw_params.get("limit"),
+        "limit",
+        default_limit,
+        errors,
     )
-    offset = _parse_non_negative_int(raw_params.get("offset"), "offset", 0, errors)
+    offset = _parse_non_negative_int(
+        raw_params.get("offset"),
+        "offset",
+        0,
+        errors,
+    )
+
     if limit > max_limit:
-        errors.append(limit_too_large(max_limit, raw_params.get("limit")))
+        errors.append(_limit_too_large(max_limit, raw_params.get("limit")))
+
     return PaginationNode(limit=limit, offset=offset)
 
 
-def _parse_filters(
-    raw_params: Mapping[str, str],
-    *,
-    fields: Mapping[str, QueryField],
-    mode: QueryMode,
-) -> _ParsedFilters:
-    nodes: list[FilterNode] = []
-    errors: list[QueryErrorDetail] = []
-
-    for param_name, raw_value in raw_params.items():
-        if param_name in RESERVED_PARAMS:
-            continue
-        node, param_errors = _parse_filter_param(
-            param_name, raw_value, fields=fields, mode=mode
-        )
-        errors.extend(param_errors)
-        if node is not None:
-            nodes.append(node)
-
-    return _ParsedFilters(nodes=nodes, errors=errors)
-
-
-def _parse_filter_param(
-    param_name: str,
-    raw_value: str,
-    *,
-    fields: Mapping[str, QueryField],
-    mode: QueryMode,
-) -> tuple[FilterNode | None, list[QueryErrorDetail]]:
-    field_name, raw_operator = split_filter_param(param_name)
-    shape_error = _filter_shape_error(field_name, raw_operator, param_name, raw_value)
-    if shape_error is not None:
-        return None, [shape_error]
-
-    declaration = fields.get(field_name)
-    declaration_error = _declaration_error(
-        declaration, field_name, param_name, raw_value, mode=mode
-    )
-    if declaration_error is not None:
-        return None, [declaration_error]
-
-    operator, operator_error = _resolve_operator(
-        raw_operator, declaration, field_name, param_name, raw_value
-    )
-    if operator_error is not None:
-        return None, [operator_error]
-    if operator is None:
-        return None, []
-
-    return _coerce_filter_node(field_name, operator, raw_value, param_name, declaration)
-
-
-def _coerce_filter_node(
-    field_name: str,
-    operator: FilterOperator,
-    raw_value: str,
-    param_name: str,
-    declaration: QueryField | None,
-) -> tuple[FilterNode | None, list[QueryErrorDetail]]:
-    type_ = declaration.type_ if declaration is not None else None
-    if operator in LIST_OPERATORS:
-        return _coerce_list_filter(field_name, operator, raw_value, param_name, type_)
-    return _coerce_scalar_filter(field_name, operator, raw_value, param_name, type_)
-
-
-def _coerce_list_filter(
-    field_name: str,
-    operator: FilterOperator,
-    raw_value: str,
-    param_name: str,
-    type_: type | str | None,
-) -> tuple[FilterNode | None, list[QueryErrorDetail]]:
-    values, errors = coerce_list(type_, raw_value, param_name=param_name)
-    if errors:
-        return None, errors
-    if not values:
-        return None, [empty_list(param_name, raw_value)]
-    return FilterNode(field=field_name, op=operator, value=values), []
-
-
-def _coerce_scalar_filter(
-    field_name: str,
-    operator: FilterOperator,
-    raw_value: str,
-    param_name: str,
-    type_: type | str | None,
-) -> tuple[FilterNode | None, list[QueryErrorDetail]]:
-    value, error = coerce_value(type_, raw_value, param_name=param_name)
-    if error is not None:
-        return None, [error]
-    return FilterNode(field=field_name, op=operator, value=value), []
-
-
-def _required_field_errors(
-    fields: Mapping[str, QueryField], filters: list[FilterNode]
-) -> list[QueryErrorDetail]:
-    present_fields = {node.field for node in filters}
-    return [
-        required_field(public_name)
-        for public_name, declaration in fields.items()
-        if declaration.required and public_name not in present_fields
-    ]
-
-
 def _parse_non_negative_int(
-    raw: str | None, name: str, default: int, errors: list[QueryErrorDetail]
+    raw: str | None,
+    name: str,
+    default: int,
+    errors: list[QueryErrorDetail],
 ) -> int:
-    if raw is None or raw == "":
-        return default
+    match raw:
+        case None | "":
+            return default
+        case _:
+            pass
+
     try:
         value = int(raw)
     except ValueError:
-        errors.append(non_negative_int_type(name, raw))
+        errors.append(_non_negative_int_error(name, "query.type_error.int", raw))
         return default
+
     if value < 0:
-        errors.append(non_negative_int_value(name, raw))
+        errors.append(
+            _non_negative_int_error(name, "query.value_error.non_negative", raw)
+        )
         return default
+
     return value
 
 
 def _filter_shape_error(
-    field_name: str, op: str, param_name: str, raw_value: str
-) -> QueryErrorDetail | None:
-    if not field_name:
-        return invalid_filter_field(param_name, raw_value)
-    if not op:
-        return invalid_filter_operator(param_name, raw_value)
-    if "$" in field_name or "$" in op:
-        return raw_operator_not_allowed(param_name, raw_value)
-    return None
-
-
-def _declaration_error(
-    declaration: QueryField | None,
     field_name: str,
-    param_name: str,
-    raw_value: str,
-    *,
-    mode: QueryMode,
-) -> QueryErrorDetail | None:
-    if declaration is None and mode == "strict":
-        return unknown_field(param_name, raw_value)
-    return None
-
-
-def _resolve_operator(
     operator: str,
-    declaration: QueryField | None,
-    field_name: str,
     param_name: str,
     raw_value: str,
-) -> tuple[FilterOperator | None, QueryErrorDetail | None]:
-    if not is_known_operator(operator):
-        return None, unknown_operator(param_name, operator, raw_value)
-    if declaration is not None and operator not in declaration.operators:
-        return None, operator_not_allowed(param_name, field_name, operator, raw_value)
-    return operator, None
+) -> QueryErrorDetail | None:
+    match (bool(field_name), bool(operator), "$" in field_name or "$" in operator):
+        case (False, _, _):
+            return QueryErrorDetail(
+                ("query", param_name),
+                "Filter field name cannot be empty.",
+                "query.invalid_field",
+                raw_value,
+            )
+        case (_, False, _):
+            return QueryErrorDetail(
+                ("query", param_name),
+                "Filter operator cannot be empty.",
+                "query.invalid_operator",
+                raw_value,
+            )
+        case (_, _, True):
+            return QueryErrorDetail(
+                ("query", param_name),
+                "Raw backend operators are not allowed in query parameters.",
+                "query.raw_operator_not_allowed",
+                raw_value,
+            )
+        case _:
+            return None
 
 
 def _sort_field_error(
     field_name: str,
     raw_sort: str,
-    *,
-    fields: Mapping[str, QueryField],
+    fields: Mapping[str, CompiledField],
     mode: QueryMode,
 ) -> QueryErrorDetail | None:
-    if not field_name:
-        return invalid_sort_field(raw_sort)
-    if "$" in field_name:
-        return raw_operator_not_allowed("sort", raw_sort)
+    match (bool(field_name), "$" in field_name):
+        case (False, _):
+            return QueryErrorDetail(
+                ("query", "sort"),
+                "Sort field name cannot be empty.",
+                "query.invalid_sort_field",
+                raw_sort,
+            )
+        case (_, True):
+            return QueryErrorDetail(
+                ("query", "sort"),
+                "Raw backend operators are not allowed in sort parameters.",
+                "query.raw_operator_not_allowed",
+                raw_sort,
+            )
+        case _:
+            pass
 
     declaration = fields.get(field_name)
-    if mode == "strict" and declaration is None:
-        return unknown_sort_field(field_name, raw_sort)
-    if declaration is not None and not declaration.sortable:
-        return sort_not_allowed(field_name, raw_sort)
-    return None
+
+    match declaration:
+        case None if mode == "strict":
+            return _unknown_sort_field(field_name, raw_sort)
+        case None:
+            return None
+        case _ if not declaration.sortable:
+            return _sort_not_allowed(field_name, raw_sort)
+        case _:
+            return None
+
+
+def _is_known_operator(operator: str) -> TypeIs[FilterOperator]:
+    return operator in KNOWN_OPERATORS
 
 
 def _split_csv(raw: str) -> list[str]:
-    return [part.strip() for part in raw.split(",") if part.strip()]
+    return [part for part in (item.strip() for item in raw.split(",")) if part]
+
+
+def _unknown_filter_field(param_name: str, raw_value: str) -> QueryErrorDetail:
+    return QueryErrorDetail(
+        ("query", param_name),
+        "Unknown filter field.",
+        "query.unknown_field",
+        raw_value,
+    )
+
+
+def _unknown_operator(
+    param_name: str,
+    operator: str,
+    raw_value: str,
+) -> QueryErrorDetail:
+    return QueryErrorDetail(
+        ("query", param_name),
+        f"Unknown operator '{operator}'.",
+        "query.unknown_operator",
+        raw_value,
+    )
+
+
+def _operator_not_allowed(
+    param_name: str,
+    field_name: str,
+    operator: FilterOperator,
+    raw_value: str,
+) -> QueryErrorDetail:
+    return QueryErrorDetail(
+        ("query", param_name),
+        f"Operator '{operator}' is not allowed for field '{field_name}'.",
+        "query.operator_not_allowed",
+        raw_value,
+    )
+
+
+def _empty_list(param_name: str, raw_value: str) -> QueryErrorDetail:
+    return QueryErrorDetail(
+        ("query", param_name),
+        "Expected at least one comma-separated value.",
+        "query.empty_list",
+        raw_value,
+    )
+
+
+def _required_field(required_name: str) -> QueryErrorDetail:
+    return QueryErrorDetail(
+        ("query", required_name),
+        "Required filter field is missing.",
+        "query.required",
+    )
+
+
+def _unknown_sort_field(field_name: str, raw_sort: str) -> QueryErrorDetail:
+    return QueryErrorDetail(
+        ("query", "sort"),
+        f"Unknown sort field '{field_name}'.",
+        "query.unknown_sort_field",
+        raw_sort,
+    )
+
+
+def _sort_not_allowed(field_name: str, raw_sort: str) -> QueryErrorDetail:
+    return QueryErrorDetail(
+        ("query", "sort"),
+        f"Field '{field_name}' is not sortable.",
+        "query.sort_not_allowed",
+        raw_sort,
+    )
+
+
+def _limit_too_large(max_limit: int, raw: str | None) -> QueryErrorDetail:
+    return QueryErrorDetail(
+        ("query", "limit"),
+        f"Limit must be less than or equal to {max_limit}.",
+        "query.limit_too_large",
+        raw,
+    )
+
+
+def _non_negative_int_error(
+    name: str,
+    error_type: str,
+    raw: str,
+) -> QueryErrorDetail:
+    return QueryErrorDetail(
+        ("query", name),
+        "Expected a non-negative integer.",
+        error_type,
+        raw,
+    )

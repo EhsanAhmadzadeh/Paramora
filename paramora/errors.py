@@ -9,8 +9,7 @@ with a documented compatibility note.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal, NotRequired, TypedDict, TYPE_CHECKING
-
+from typing import TYPE_CHECKING, Any, Literal, NotRequired, TypedDict
 
 if TYPE_CHECKING:
     from .query_ast import FilterOperator

@@ -43,7 +43,6 @@ class QueryContract:
 
     __paramora_contract__: ClassVar[bool] = True
 
-
 def contract_fields(contract: type[QueryContract]) -> Mapping[str, QueryField]:
     """Extract resolved field declarations from a contract class.
 
@@ -54,33 +53,36 @@ def contract_fields(contract: type[QueryContract]) -> Mapping[str, QueryField]:
         A mapping of public query field names to resolved declarations.
 
     Raises:
-        TypeError: Raised when ``contract`` is not a ``QueryContract`` subclass.
         ValueError: Raised when a contract field uses an unsupported default or
             contains more than one ``query_field(...)`` metadata object.
     """
-    if not isinstance(contract, type) or not issubclass(contract, QueryContract): # type: ignore
-        raise TypeError("contract must be a QueryContract subclass.")
-
     resolved: dict[str, QueryField] = {}
+
     for base in reversed(contract.__mro__):
-        if not issubclass(base, QueryContract) or base is QueryContract:
+        if base is QueryContract or not issubclass(base, QueryContract):
             continue
+
         hints = get_type_hints(base, include_extras=True)
         annotations = getattr(base, "__annotations__", {})
+
         for name in annotations:
             if name.startswith("_"):
                 continue
+
             annotated_type = hints.get(name)
             if annotated_type is None or _is_class_var(annotated_type):
                 continue
+
             if name in base.__dict__:
                 msg = (
                     f"Query contract field '{name}' must not assign defaults. "
                     "Use Annotated[T, query_field(...)] metadata instead."
                 )
                 raise ValueError(msg)
+
             type_, info = _extract_annotation(annotated_type)
             resolved[name] = resolve_query_field(type_, info)
+
     return resolved
 
 

@@ -4,64 +4,64 @@ A query contract is the public query surface for an endpoint. It describes field
 names, value types, allowed operators, sortability, backend aliases, and required
 filters.
 
-## Basic contract
-
 ```python
-from paramora import QueryContract
-
-class ItemQuery(QueryContract):
-    active: bool
-    status: str
-```
-
-Bare fields allow equality only. This means `?active=true` and `?status=free`
-are accepted, but `?status__in=free,busy` is rejected unless `in` is declared.
-
-## Operators
-
-```python
+from datetime import datetime
 from typing import Annotated
+
 from paramora import QueryContract, query_field
+
 
 class ItemQuery(QueryContract):
     status: Annotated[str, query_field("eq", "in", "nin")]
-```
-
-Operators are positional string literals for editor autocomplete. Supported 0.1
-operators are `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, and `nin`.
-
-## Sorting
-
-```python
-class ItemQuery(QueryContract):
+    active: bool
     created_at: Annotated[datetime, query_field("gte", "lte", sortable=True)]
+    price: Annotated[float, query_field("eq", "gt", "gte", "lt", "lte")]
 ```
 
-Contract-backed strict mode only allows sorting on fields marked as sortable.
+## Bare annotations
 
-## Aliases
-
-Aliases map public query names to backend field names during emission:
+A bare annotation means equality only:
 
 ```python
-class ItemQuery(QueryContract):
-    created_at: Annotated[
-        datetime,
-        query_field("gte", "lte", sortable=True, alias="createdAt"),
-    ]
+active: bool
 ```
 
-The AST keeps the public field name. The MongoDB emitter applies the alias.
+This accepts `?active=true` and `?active__eq=true`.
 
-## Required filters
+## Field metadata
+
+Use `query_field(...)` inside `typing.Annotated` for Paramora metadata:
 
 ```python
-class ItemQuery(QueryContract):
-    tenant_id: Annotated[str, query_field(required=True)]
+created_at: Annotated[
+    datetime,
+    query_field("gte", "lte", sortable=True, alias="createdAt"),
+]
 ```
 
-Required filters are useful for guardrails such as tenant scoping. If the field
-is missing, Paramora returns `query.required`.
+Arguments:
+
+- positional operators: allowed filter operators for the field
+- `sortable`: whether the field may be used in `sort`
+- `alias`: backend field name used by emitters
+- `required`: whether at least one filter for this field must be present
+
+## Why Annotated?
+
+Do this:
+
+```python
+created_at: Annotated[datetime, query_field("gte", "lte")]
+```
+
+Do not do this:
+
+```python
+created_at: datetime = query_field("gte", "lte")
+```
+
+The `Annotated` style keeps type checkers aware that `created_at` is a
+`datetime`, not a Paramora metadata object.
 
 ## Unsupported annotations
 

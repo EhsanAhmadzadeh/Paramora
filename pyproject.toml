@@ -1,12 +1,12 @@
 [project]
 name = "paramora"
-version = "0.1.2"
+version = "0.1.0"
 description = "Safe typed query compilation for FastAPI."
 readme = "README.md"
 requires-python = ">=3.14"
 authors = [{ name = "Ehsan Ahmadzadeh", email = "amirehsansolout@gmail.com" }]
 maintainers = [{ name = "Ehsan Ahmadzadeh", email = "amirehsansolout@gmail.com" }]
-license = { text = "MIT" }
+license = "MIT"
 keywords = [
     "fastapi",
     "query-parameters",
@@ -32,18 +32,18 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
-    "pytest>=9.0.3",
-    "pytest-cov>=7.0",
     "httpx>=0.27",
     "mongomock>=4.3",
+    "pytest>=9.0.3",
+    "pytest-cov>=7.0",
 ]
 dev = [
-    "pytest>=9.0.3",
-    "pytest-cov>=7.0",
     "httpx>=0.27",
     "mongomock>=4.3",
-    "ruff>=0.14.0",
     "pyright>=1.1.400",
+    "pytest>=9.0.3",
+    "pytest-cov>=7.0",
+    "ruff>=0.14.0",
 ]
 
 [project.urls]
@@ -62,8 +62,26 @@ packages = ["paramora"]
 [tool.hatch.build.targets.sdist]
 include = [
     "/paramora",
+    "/tests",
+    "/benchmarks",
+    "/docs",
+    "/.github",
+    "/README.md",
+    "/ARCHITECTURE.md",
+    "/CONTRIBUTING.md",
+    "/SECURITY.md",
+    "/LICENSE",
     "/pyproject.toml",
     "/uv.lock",
+]
+exclude = [
+    "**/__pycache__",
+    "*.pyc",
+    ".coverage",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "dist",
 ]
 
 [tool.pytest.ini_options]
@@ -80,6 +98,19 @@ addopts = [
 xfail_strict = true
 filterwarnings = [
     "error",
+]
+
+[tool.coverage.run]
+source = ["paramora"]
+omit = ["*/__init__.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+fail_under = 90
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "\\.\\.\\.",
 ]
 
 [tool.ruff]
@@ -132,20 +163,13 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
-    "D",        # Tests do not need public API docstrings.
+    "D",       # Tests do not need public API docstrings.
     "PLR2004", # Magic values are acceptable in tests.
     "S101",    # assert is required in pytest tests.
-    "ARG001",  # Fixtures may appear unused to Ruff.
 ]
-
 "benchmarks/**/*.py" = [
     "T201",    # Profiling scripts intentionally print reports.
 ]
-
-"paramora/errors.py" = [
-    "A003",    # Validation payloads intentionally expose a `type` key.
-]
-
 "paramora/emitters/mongo.py" = [
     "A003",    # PyMongo-compatible API intentionally uses `filter`.
 ]
@@ -156,6 +180,9 @@ convention = "google"
 [tool.ruff.lint.isort]
 known-first-party = ["paramora"]
 
+[tool.ruff.lint.pylint]
+max-args = 8
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
@@ -163,7 +190,7 @@ line-ending = "lf"
 docstring-code-format = true
 
 [tool.pyright]
-include = ["paramora", "tests"]
+include = ["paramora", "tests", "benchmarks"]
 exclude = [
     "**/__pycache__",
     ".venv",
@@ -189,10 +216,10 @@ reportUnusedVariable = "warning"
 
 [dependency-groups]
 dev = [
-    "pytest>=9.0.3",
-    "pytest-cov>=7.0",
     "httpx>=0.27",
     "mongomock>=4.3",
-    "ruff>=0.14.0",
     "pyright>=1.1.400",
+    "pytest>=9.0.3",
+    "pytest-cov>=7.0",
+    "ruff>=0.14.0",
 ]

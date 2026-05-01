@@ -52,14 +52,12 @@ item_query = Query(ItemQuery, default_limit=20, max_limit=100)
 def list_items(query: CompiledQuery = Depends(item_query)):
     mongo = query.to_mongo()
     return list(
-        collection
-        .find(mongo.filter)
+        collection.find(mongo.filter)
         .sort(mongo.sort)
         .skip(mongo.offset)
         .limit(mongo.limit)
     )
 ```
-
 
 ## Try a request
 

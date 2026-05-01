@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime  # noqa: TC003
-from typing import TYPE_CHECKING, Annotated, cast
+from typing import Any, Annotated
 
 import pytest
 
 from paramora import Query, QueryContract, query_field
-
-if TYPE_CHECKING:
-    from paramora.query_ast import FilterOperator
 
 
 class BaseAuditQuery(QueryContract):
@@ -60,7 +57,7 @@ def test_explicit_strict_mode_without_contract_is_rejected() -> None:
 
 def test_query_field_rejects_unknown_operators() -> None:
     # Arrange
-    invalid_operator = cast("FilterOperator", "raw")
+    invalid_operator: Any = "raw"
 
     # Act / Assert
     with pytest.raises(ValueError, match="Unknown operator"):
@@ -69,15 +66,12 @@ def test_query_field_rejects_unknown_operators() -> None:
 
 def test_contract_rejects_regular_default_values() -> None:
     # Arrange
-    namespace = {"__annotations__": {"status": str}, "status": "free"}
-    bad_contract = cast(
-        "type[QueryContract]",
-        type("BadContract", (QueryContract,), namespace),
-    )
+    class BadContract(QueryContract):
+        status: str = "free"
 
     # Act / Assert
     with pytest.raises(ValueError, match="must not assign defaults"):
-        Query(bad_contract)
+        Query(BadContract)
 
 
 def test_contract_rejects_container_annotations() -> None:

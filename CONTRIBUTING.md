@@ -5,10 +5,8 @@ the API small, typed, documented, and FastAPI-native.
 
 ## Local setup
 
-Paramora is developed uv-first:
-
 ```bash
-uv sync --group dev
+pip install -e ".[dev]"
 ```
 
 ## Quality checks
@@ -16,10 +14,10 @@ uv sync --group dev
 Run these before opening a pull request:
 
 ```bash
-uv run ruff format --check .
-uv run ruff check .
-uv run pyright
-uv run pytest -vv
+ruff format --check .
+ruff check .
+pyright
+pytest
 ```
 
 ## Testing style
@@ -88,7 +86,7 @@ at the expense of useful tests, but newly added behavior should be covered.
 Performance work should include before/after evidence. Start with:
 
 ```bash
-uv run python benchmarks/profile_parse.py
+python benchmarks/profile_parse.py
 ```
 
 Include profiler output or a concise summary in performance-focused pull

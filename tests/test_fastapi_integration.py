@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 
@@ -25,7 +27,7 @@ def create_items_client(query_dependency: Query) -> TestClient:
     app = FastAPI()
 
     @app.get(ITEMS_PATH)
-    def list_items(query: CompiledQuery = Depends(query_dependency)) -> object:  # type: ignore # noqa: B008
+    def list_items(query: CompiledQuery = Depends(query_dependency)) -> object:
         """Return the compiled Mongo filter for the current request."""
         return query.to_mongo().filter
 

@@ -5,12 +5,13 @@ parameters into a backend-neutral AST, then emits backend-specific query objects
 The current MVP is FastAPI-native and currently supports MongoDB output.
 
 > Status: 0.1 pre-release. The API is still allowed to change before the first
-> public package release.
+> stable release.
 
 ## Documentation
 
 The README gives the short path. The full user and contributor documentation is
-kept in the repository under [`docs/`](https://github.com/EhsanAhmadzadeh/Paramora/tree/main/docs):
+kept in this repository under [`docs/`](docs/):
+
 
 - [Quickstart](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/quickstart.md)
 - [Query contracts](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/contracts.md)
@@ -21,18 +22,19 @@ kept in the repository under [`docs/`](https://github.com/EhsanAhmadzadeh/Paramo
 - [Testing strategy](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/testing.md)
 - [Profiling and future Rust hotspots](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/profiling-and-rust.md)
 
-These docs live on the main branch so GitHub, source distributions, and PyPI
-readers can find the same authoritative material. The wheel only needs the
-runtime `paramora` package; docs do not need to be installed with the package.
+
+Docs live on the main branch so GitHub, source distributions, and PyPI readers
+can find the same authoritative material. Wheels only need the runtime
+`paramora` package.
 
 ## Installation
 
-Paramora is designed for FastAPI applications. Once the package is published
-on PyPI, install it with:
+Paramora is designed for FastAPI applications. The package is not published yet;
+when it is, installation will look like this:
 
 ```bash
 uv add paramora
-````
+```
 
 For local development from the repository:
 
@@ -104,24 +106,8 @@ Paramora has one simple mode rule:
 - `Query()` has no contract and defaults to loose mode.
 - `Query(MyContract)` has a contract and defaults to strict mode.
 
-Loose mode is useful for prototypes and internal tools:
-
-```python
-loose_query = Query(default_limit=20, max_limit=100)
-```
-
-Strict mode is the recommended shape for public endpoints:
-
-```python
-class ItemQuery(QueryContract):
-    status: Annotated[str, query_field("eq", "in")]
-    active: bool
-
-item_query = Query(ItemQuery)
-```
-
-Strict mode rejects unknown fields, unknown operators, disallowed operators,
-invalid values, non-sortable sort fields, and invalid pagination values.
+Strict mode is recommended for public endpoints. Loose mode is useful for
+prototypes and trusted internal tools.
 
 ## Contract fields
 
@@ -148,36 +134,10 @@ The positional operator API is deliberate: editors such as Pylance can provide
 better autocomplete for `query_field("eq", "in")` than for a nested tuple such as
 `allow=("eq", "in")`.
 
-## Supported query syntax
-
-Paramora supports Django-style query operators:
-
-```http
-/items?status__in=free,busy&active=true&created_at__gte=2026-01-01&sort=-created_at&limit=20&offset=0
-```
-
-Supported operators in 0.1:
-
-- `eq`
-- `ne`
-- `gt`
-- `gte`
-- `lt`
-- `lte`
-- `in`
-- `nin`
-
-A bare field defaults to equality, so `?active=true` is equivalent to
-`?active__eq=true`.
-
 ## MongoDB backend
 
-MongoDB is the first supported backend. Paramora currently emits:
-
-- Mongo filter dictionaries
-- PyMongo-compatible sort pairs
-- `limit`
-- `offset`
+MongoDB is the first supported backend. Paramora currently emits Mongo filter
+dictionaries, PyMongo-compatible sort pairs, `limit`, and `offset`.
 
 ```python
 mongo = query.to_mongo()
@@ -204,26 +164,7 @@ Validation errors are structured and FastAPI-compatible:
 }
 ```
 
-See [Error handling](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/errors.md) for stable error code semantics.
-
-## Security notes
-
-Paramora intentionally does not expose raw Mongo operators in query parameters.
-Use Paramora operators:
-
-```http
-/items?price__gte=10
-```
-
-Do not expose raw backend syntax:
-
-```http
-/items?price[$gte]=10
-/items?price__$gte=10
-```
-
-Loose mode is schema-relaxed, not raw-database mode. Raw backend operators are
-still rejected by default.
+See [Error handling](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/errors.md) for stable error-code semantics.
 
 ## Development
 
@@ -240,6 +181,3 @@ uv run pyright
 The default pytest configuration runs coverage with missing-line reporting.
 Mongo-like execution tests use `mongomock`; parser and coercion behavior are
 covered by focused unit tests.
-
-See [Development with uv](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/development.md) and
-[Testing strategy](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/testing.md) for the full workflow.
