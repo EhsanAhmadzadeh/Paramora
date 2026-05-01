@@ -1,0 +1,9 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and discussions
+    url: https://github.com/EhsanAhmadzadeh/Paramora/discussions
+    about: Ask usage questions, discuss ideas, or propose designs before opening an issue.
+
+  - name: Security report
+    url: mailto:amirehsansolout@gmail.com
+    about: Please report potential security vulnerabilities privately by email.

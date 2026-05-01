@@ -1,0 +1,80 @@
+name: Backend request
+description: Request or discuss support for a new backend or emitter.
+title: "backend: "
+labels:
+  - "type: feature"
+  - "backend: custom"
+  - "status: needs design"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Paramora currently focuses on MongoDB. Future backends should preserve the backend-neutral AST and safe query compilation model.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-checks
+      options:
+        - label: I understand MongoDB is currently the primary supported backend.
+          required: true
+        - label: I am proposing backend support through the AST/emitter model, not direct query-param passthrough.
+          required: true
+
+  - type: input
+    id: backend-name
+    attributes:
+      label: Backend name
+      placeholder: "SQLAlchemy / PostgreSQL / Elasticsearch / custom search service"
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use case
+      description: Why should Paramora support this backend?
+      placeholder: |
+        We use FastAPI with SQLAlchemy and want the same query contract API to produce SQLAlchemy expressions.
+    validations:
+      required: true
+
+  - type: textarea
+    id: target-output
+    attributes:
+      label: Desired emitted output
+      description: Show the kind of backend-specific object Paramora should emit.
+      render: python
+      placeholder: |
+        SqlAlchemyQuery(
+            where=[Item.price >= 10],
+            order_by=[Item.created_at.desc()],
+            limit=20,
+            offset=0,
+        )
+    validations:
+      required: true
+
+  - type: textarea
+    id: query-example
+    attributes:
+      label: Example Paramora contract and query string
+      render: python
+      placeholder: |
+        class ItemQuery(QueryContract):
+            price: Annotated[float, query_field("gte", "lte")]
+            created_at: Annotated[datetime, query_field("gte", "lte", sortable=True)]
+
+        # ?price__gte=10&sort=-created_at
+    validations:
+      required: false
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: Backend-specific concerns
+      description: Security, injection risks, unsupported operators, performance concerns, or typing issues.
+      placeholder: |
+        SQL injection must be impossible. Output should use SQLAlchemy expressions, not raw SQL strings.
+    validations:
+      required: false

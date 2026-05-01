@@ -1,0 +1,66 @@
+name: Documentation issue
+description: Report missing, confusing, outdated, or incorrect documentation.
+title: "docs: "
+labels:
+  - "type: documentation"
+  - "area: docs"
+  - "status: needs triage"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve the docs. Clear documentation is a core part of Paramora.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-checks
+      options:
+        - label: I checked the README and docs directory.
+          required: true
+
+  - type: dropdown
+    id: docs-area
+    attributes:
+      label: Documentation area
+      options:
+        - README
+        - Quickstart
+        - Query contracts
+        - Query syntax
+        - Error handling
+        - MongoDB backend
+        - Development with uv
+        - Testing
+        - Profiling / Rust hotspot planning
+        - Architecture
+        - Contributing
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: page
+    attributes:
+      label: Page or file
+      placeholder: "docs/contracts.md"
+    validations:
+      required: false
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: What is wrong or missing?
+      placeholder: |
+        The docs explain strict mode, but they do not show how required fields behave.
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested
+    attributes:
+      label: Suggested improvement
+      placeholder: |
+        Add an example using query_field(required=True) and show the 422 error payload.
+    validations:
+      required: false

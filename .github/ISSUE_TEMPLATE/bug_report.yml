@@ -1,0 +1,146 @@
+name: Bug report
+description: Report incorrect behavior, crashes, invalid query output, or unexpected validation results.
+title: "bug: "
+labels:
+  - "type: bug"
+  - "status: needs triage"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please include a minimal reproducible example so we can investigate quickly.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-checks
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+        - label: I can reproduce this with the latest released version or the current main branch.
+          required: true
+        - label: I included a minimal query contract, query string, and expected behavior.
+          required: true
+
+  - type: input
+    id: paramora-version
+    attributes:
+      label: Paramora version
+      description: Example: 0.1.2-alpha
+      placeholder: "0.1.2-alpha"
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      description: Paramora currently targets Python 3.14+.
+      placeholder: "3.14.4"
+    validations:
+      required: true
+
+  - type: input
+    id: fastapi-version
+    attributes:
+      label: FastAPI version
+      placeholder: "0.115.x"
+    validations:
+      required: false
+
+  - type: input
+    id: backend
+    attributes:
+      label: Backend
+      description: Paramora currently supports MongoDB as the primary backend.
+      placeholder: "MongoDB / mongomock / custom emitter"
+    validations:
+      required: true
+
+  - type: textarea
+    id: contract
+    attributes:
+      label: Query contract
+      description: Paste the smallest QueryContract that reproduces the issue.
+      render: python
+      placeholder: |
+        from datetime import datetime
+        from typing import Annotated
+
+        from paramora import QueryContract, query_field
+
+        class ItemQuery(QueryContract):
+            price: Annotated[float, query_field("gte", "lte")]
+            created_at: Annotated[datetime, query_field("gte", "lte", sortable=True)]
+    validations:
+      required: true
+
+  - type: textarea
+    id: query-string
+    attributes:
+      label: Query parameters
+      description: Paste the exact query string or params dict.
+      render: text
+      placeholder: |
+        ?price__gte=10&price__lte=20&sort=-created_at&limit=10
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened? Include traceback, HTTP response, validation error, or MongoQuery output.
+      render: text
+      placeholder: |
+        MongoQuery(...)
+        # or
+        {"detail": [...]}
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened instead?
+      render: text
+      placeholder: |
+        MongoQuery(filter={"price": {"$gte": 10.0, "$lte": 20.0}}, ...)
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Provide a small runnable snippet, pytest test, or FastAPI route.
+      render: python
+      placeholder: |
+        def test_reproduction():
+            query = Query(ItemQuery)
+            compiled = query.parse({"price__gte": "10"})
+            assert compiled.to_mongo().filter == {"price": {"$gte": 10.0}}
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment details
+      description: Operating system, package manager, uv version, Mongo driver/mongomock version if relevant.
+      render: text
+      placeholder: |
+        OS:
+        uv version:
+        pymongo/mongomock version:
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Anything else that may help.
+    validations:
+      required: false
