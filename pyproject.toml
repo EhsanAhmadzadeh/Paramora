@@ -1,6 +1,6 @@
 [project]
 name = "paramora"
-version = "0.1.0"
+version = "0.2.0"
 description = "Safe typed query compilation for FastAPI."
 readme = "README.md"
 requires-python = ">=3.14"
@@ -62,15 +62,6 @@ packages = ["paramora"]
 [tool.hatch.build.targets.sdist]
 include = [
     "/paramora",
-    "/tests",
-    "/benchmarks",
-    "/docs",
-    "/.github",
-    "/README.md",
-    "/ARCHITECTURE.md",
-    "/CONTRIBUTING.md",
-    "/SECURITY.md",
-    "/LICENSE",
     "/pyproject.toml",
     "/uv.lock",
 ]

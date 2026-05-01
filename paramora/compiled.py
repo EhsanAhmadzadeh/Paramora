@@ -4,7 +4,6 @@
 # This module turns those declarations into a compact runtime representation that
 # can be reused for every request handled by a ``Query`` instance.
 
-
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping

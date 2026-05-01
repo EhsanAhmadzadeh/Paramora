@@ -156,9 +156,7 @@ def test_compiled_sort_limit_and_offset_are_applied_by_mongomock(
     query = make_item_query()
 
     # Act
-    mongo = query.parse(
-        {"sort": "-created_at", "limit": "2", "offset": "1"}
-    ).to_mongo()
+    mongo = query.parse({"sort": "-created_at", "limit": "2", "offset": "1"}).to_mongo()
     docs = run_mongo_query(mongo_items_collection, mongo)
 
     # Assert

@@ -20,7 +20,7 @@ class DebugQuery:
 
 
 class DebugEmitter:
-    def emit(self, ast: QueryAst, fields: Mapping[str, QueryField]) -> DebugQuery:
+    def emit(self, ast: QueryAst, fields: Mapping[str, QueryField]) -> DebugQuery:  # noqa: ARG002
         return DebugQuery(
             filter_count=len(ast.filters),
             sort_count=len(ast.sort),

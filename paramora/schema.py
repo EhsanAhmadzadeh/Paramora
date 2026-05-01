@@ -6,8 +6,8 @@ compiler from a Pydantic-like ``QueryContract`` class. The object is callable an
 is meant to be passed directly to ``fastapi.Depends``.
 """
 
-from dataclasses import dataclass
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import Self
 
 from fastapi import HTTPException, Request

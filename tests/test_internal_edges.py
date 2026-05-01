@@ -131,7 +131,7 @@ def test_unknown_contract_type_falls_back_to_string_coercion() -> None:
 
 def test_make_scalar_coercer_falls_back_to_string_coercer() -> None:
     # Arrange
-    coercer = make_scalar_coercer(object()) # type: ignore
+    coercer = make_scalar_coercer(object())  # type: ignore
 
     # Act
     value, error = coercer("raw", "custom")

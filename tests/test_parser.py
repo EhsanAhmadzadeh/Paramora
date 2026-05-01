@@ -117,7 +117,7 @@ def test_float_values_are_coerced_for_declared_numeric_fields(
 def test_boolean_values_are_coerced_case_insensitively(
     make_item_query: Callable[..., Query],
     raw_value: str,
-    expected_value: bool,
+    expected_value: bool,  # noqa: FBT001
 ) -> None:
     # Arrange
     query = make_item_query()
@@ -389,7 +389,6 @@ def test_field_alias_is_applied_by_mongo_emitter() -> None:
     # Assert
     assert mongo.filter == {"createdAt": {"$gte": datetime(2026, 1, 1)}}
     assert mongo.sort == [("createdAt", -1)]
-
 
 
 def test_raw_mongo_operator_field_is_rejected_even_without_contract() -> None:

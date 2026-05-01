@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime  # noqa: TC003
-from typing import Any, Annotated
+from typing import Annotated, Any
 
 import pytest
 

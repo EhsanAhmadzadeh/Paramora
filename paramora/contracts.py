@@ -43,6 +43,7 @@ class QueryContract:
 
     __paramora_contract__: ClassVar[bool] = True
 
+
 def contract_fields(contract: type[QueryContract]) -> Mapping[str, QueryField]:
     """Extract resolved field declarations from a contract class.
 
