@@ -1,0 +1,47 @@
+# Bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyright/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Coverage and test artifacts
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+
+# Python packaging / tooling
+pip-wheel-metadata/
+.hatch/
+
+# IDE/editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# uv lockfile is intentionally tracked for reproducible development.
+!uv.lock
