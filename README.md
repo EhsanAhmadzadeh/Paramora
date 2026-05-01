@@ -10,16 +10,16 @@ The current MVP is FastAPI-native and currently supports MongoDB output.
 ## Documentation
 
 The README gives the short path. The full user and contributor documentation is
-kept in this repository under [`docs/`](docs/):
+kept in the repository under [`docs/`](https://github.com/EhsanAhmadzadeh/Paramora/tree/main/docs):
 
-- [Quickstart](docs/quickstart.md)
-- [Query contracts](docs/contracts.md)
-- [Query syntax](docs/query-syntax.md)
-- [Error handling](docs/errors.md)
-- [MongoDB backend](docs/mongodb.md)
-- [Development with uv](docs/development.md)
-- [Testing strategy](docs/testing.md)
-- [Profiling and future Rust hotspots](docs/profiling-and-rust.md)
+- [Quickstart](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/quickstart.md)
+- [Query contracts](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/contracts.md)
+- [Query syntax](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/query-syntax.md)
+- [Error handling](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/errors.md)
+- [MongoDB backend](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/mongodb.md)
+- [Development with uv](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/development.md)
+- [Testing strategy](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/testing.md)
+- [Profiling and future Rust hotspots](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/profiling-and-rust.md)
 
 These docs live on the main branch so GitHub, source distributions, and PyPI
 readers can find the same authoritative material. The wheel only needs the
@@ -27,12 +27,12 @@ runtime `paramora` package; docs do not need to be installed with the package.
 
 ## Installation
 
-Paramora is designed for FastAPI applications. The package is not published yet;
-when it is, installation will look like this:
+Paramora is designed for FastAPI applications. Once the package is published
+on PyPI, install it with:
 
 ```bash
 uv add paramora
-```
+````
 
 For local development from the repository:
 
@@ -79,7 +79,6 @@ def list_items(query: CompiledQuery = Depends(item_query)):
         .limit(mongo.limit)
     )
 ```
-
 
 Request:
 
@@ -205,7 +204,7 @@ Validation errors are structured and FastAPI-compatible:
 }
 ```
 
-See [Error handling](docs/errors.md) for stable error code semantics.
+See [Error handling](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/errors.md) for stable error code semantics.
 
 ## Security notes
 
@@ -242,5 +241,5 @@ The default pytest configuration runs coverage with missing-line reporting.
 Mongo-like execution tests use `mongomock`; parser and coercion behavior are
 covered by focused unit tests.
 
-See [Development with uv](docs/development.md) and
-[Testing strategy](docs/testing.md) for the full workflow.
+See [Development with uv](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/development.md) and
+[Testing strategy](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/testing.md) for the full workflow.
