@@ -66,14 +66,6 @@ packages = ["paramora"]
 [tool.hatch.build.targets.sdist]
 include = [
     "/paramora",
-    "/tests",
-    "/benchmarks",
-    "/docs",
-    "/README.md",
-    "/ARCHITECTURE.md",
-    "/CONTRIBUTING.md",
-    "/SECURITY.md",
-    "/LICENSE",
     "/pyproject.toml",
     "/uv.lock",
 ]
