@@ -23,7 +23,7 @@ def assert_single_error(error: QueryValidationError, *, type_: str) -> None:
     errors = error.to_list()
 
     assert len(errors) == 1
-    assert errors[0]["type"] == type_
+    assert errors[0].get("type") == type_
 
 
 def test_integer_field_is_coerced_to_int() -> None:
@@ -31,7 +31,7 @@ def test_integer_field_is_coerced_to_int() -> None:
     query = Query(CoercionContract)
 
     # Act
-    mongo = query.parse({"count": "42"}).to_mongo()
+    mongo = query.parse({"count": "42"}).output
 
     # Assert
     assert mongo.filter == {"count": 42}
@@ -54,7 +54,7 @@ def test_enum_field_is_coerced_from_value() -> None:
     query = Query(CoercionContract)
 
     # Act
-    mongo = query.parse({"priority": "high"}).to_mongo()
+    mongo = query.parse({"priority": "high"}).output
 
     # Assert
     assert mongo.filter == {"priority": Priority.HIGH}
@@ -65,7 +65,7 @@ def test_enum_list_field_is_coerced_from_values() -> None:
     query = Query(CoercionContract)
 
     # Act
-    mongo = query.parse({"priority__in": "low,high"}).to_mongo()
+    mongo = query.parse({"priority__in": "low,high"}).output
 
     # Assert
     assert mongo.filter == {"priority": {"$in": [Priority.LOW, Priority.HIGH]}}

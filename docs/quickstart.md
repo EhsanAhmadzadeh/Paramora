@@ -5,7 +5,7 @@ backend is MongoDB.
 
 ## Install
 
-The package is not published yet. When it is available, install it with uv:
+Install with uv:
 
 ```bash
 uv add paramora
@@ -42,24 +42,22 @@ class ItemQuery(QueryContract):
 
 ```python
 from fastapi import Depends, FastAPI
-from paramora import CompiledQuery, Query
+from paramora import CompiledQuery, MongoQuery, Query
 
 app = FastAPI()
-item_query = Query(ItemQuery, default_limit=20, max_limit=100)
+item_query: Query[MongoQuery] = Query(ItemQuery, default_limit=20, max_limit=100)
 
 
 @app.get("/items")
-def list_items(query: CompiledQuery = Depends(item_query)):
-    mongo = query.to_mongo()
+def list_items(query: CompiledQuery[MongoQuery] = Depends(item_query)):
+    mongo = query.output
     return list(
-        collection
-        .find(mongo.filter)
+        collection.find(mongo.filter)
         .sort(mongo.sort)
         .skip(mongo.offset)
         .limit(mongo.limit)
     )
 ```
-
 
 ## Try a request
 

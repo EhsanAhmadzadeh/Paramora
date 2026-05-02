@@ -1,14 +1,13 @@
-"""Backend emitters that compile Paramora AST objects into query objects."""
-
-from __future__ import annotations
+"""Backend emitters shipped with Paramora."""
 
 from .base import QueryEmitter
-from .mongo import MongoEmitter, MongoFilter, MongoQuery, MongoSort
+from .mongo import MongoEmitter, MongoQuery
+from .sql import SqlEmitter, SqlQuery
 
 __all__ = [
     "MongoEmitter",
-    "MongoFilter",
     "MongoQuery",
-    "MongoSort",
     "QueryEmitter",
+    "SqlEmitter",
+    "SqlQuery",
 ]

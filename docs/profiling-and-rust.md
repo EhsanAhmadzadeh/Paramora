@@ -22,3 +22,17 @@ Pylance, and downstream users keep precise type information.
 
 A Rust rewrite should not force a major version unless it changes user-facing
 APIs, error shapes, AST contracts, or extension interfaces.
+
+## Current pure-Python optimization strategy
+
+The current optimized Python implementation focuses on reducing repeated dynamic
+work in the request hot path:
+
+- query contracts are compiled once when `Query(...)` is created
+- field aliases, required fields, sortable fields, and allowed operators are reused
+- scalar and list coercer functions are precomputed per field
+- filter parameter splitting uses `str.rpartition("__")`
+- Mongo emission uses compiled backend field names
+
+This keeps installation simple while improving the common `query.parse(...).output` path.
+Native accelerators should only be reconsidered after this optimized Python baseline is measured.

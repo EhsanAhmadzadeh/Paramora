@@ -1,19 +1,22 @@
+from __future__ import annotations
+
 from http import HTTPStatus
 from typing import TYPE_CHECKING
 
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
-from paramora import CompiledQuery, Query
+from paramora import CompiledQuery, MongoQuery, Query
+from paramora.emitters.mongo import MongoEmitter
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from conftest import ItemQueryFactory
 
 
 ITEMS_PATH = "/items"
 
 
-def create_items_client(query_dependency: Query) -> TestClient:
+def create_items_client(query_dependency: Query[MongoQuery]) -> TestClient:
     """Create a FastAPI test client with the Paramora query dependency mounted.
 
     Args:
@@ -24,16 +27,20 @@ def create_items_client(query_dependency: Query) -> TestClient:
     """
     app = FastAPI()
 
-    @app.get(ITEMS_PATH)
-    def list_items(query: CompiledQuery = Depends(query_dependency)) -> object:  # type: ignore # noqa: B008
-        """Return the compiled Mongo filter for the current request."""
-        return query.to_mongo().filter
+    dependency = Depends(query_dependency)
 
+    def list_items(
+        query: CompiledQuery[MongoQuery] = dependency,
+    ) -> object:
+        """Return the compiled Mongo filter for the current request."""
+        return query.output.filter
+
+    app.add_api_route(ITEMS_PATH, list_items, methods=["GET"])
     return TestClient(app)
 
 
 def test_fastapi_dependency_returns_compiled_query_on_valid_request(
-    make_item_query: Callable[..., Query],
+    make_item_query: ItemQueryFactory,
 ) -> None:
     """Verify that a valid FastAPI request returns the compiled query filter."""
     # Arrange
@@ -49,7 +56,7 @@ def test_fastapi_dependency_returns_compiled_query_on_valid_request(
 
 
 def test_fastapi_dependency_returns_422_for_validation_errors(
-    make_item_query: Callable[..., Query],
+    make_item_query: ItemQueryFactory,
 ) -> None:
     """Verify that query validation errors are returned as HTTP 422 responses."""
     # Arrange
@@ -76,7 +83,12 @@ def test_fastapi_dependency_returns_422_for_validation_errors(
 def test_fastapi_dependency_uses_loose_mode_without_contract() -> None:
     """Verify that loose mode preserves undeclared query parameters."""
     # Arrange
-    client = create_items_client(Query(default_limit=10, max_limit=50))
+    loose_query: Query[MongoQuery] = Query(
+        default_limit=10,
+        max_limit=50,
+        emitter=MongoEmitter(),
+    )
+    client = create_items_client(loose_query)
     expected_response = {"undeclared": "value"}
 
     # Act

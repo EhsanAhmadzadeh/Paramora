@@ -14,7 +14,7 @@ class MongoQuery:
 Use it with PyMongo-style collections:
 
 ```python
-mongo = query.to_mongo()
+mongo = query.output
 
 docs = (
     collection

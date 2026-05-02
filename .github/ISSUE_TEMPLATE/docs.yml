@@ -6,11 +6,6 @@ labels:
   - "area: docs"
   - "status: needs triage"
 body:
-  - type: markdown
-    attributes:
-      value: |
-        Thanks for helping improve the docs. Clear documentation is a core part of Paramora.
-
   - type: checkboxes
     id: checks
     attributes:
@@ -39,20 +34,10 @@ body:
     validations:
       required: true
 
-  - type: input
-    id: page
-    attributes:
-      label: Page or file
-      placeholder: "docs/contracts.md"
-    validations:
-      required: false
-
   - type: textarea
     id: issue
     attributes:
       label: What is wrong or missing?
-      placeholder: |
-        The docs explain strict mode, but they do not show how required fields behave.
     validations:
       required: true
 
@@ -60,7 +45,5 @@ body:
     id: suggested
     attributes:
       label: Suggested improvement
-      placeholder: |
-        Add an example using query_field(required=True) and show the 422 error payload.
     validations:
       required: false

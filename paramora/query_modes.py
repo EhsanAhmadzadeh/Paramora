@@ -1,7 +1,7 @@
-"""Validation mode names supported by Paramora query schemas."""
+"""Validation mode definitions for Paramora queries."""
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, TypeAlias
 
-type QueryMode = Literal["strict", "loose"]
+QueryMode: TypeAlias = Literal["strict", "loose"]

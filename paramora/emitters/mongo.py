@@ -9,20 +9,18 @@ syntax.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from paramora.emitters.base import QueryEmitter
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
-
-    from paramora.fields import QueryField
+    from paramora.compiled import CompiledContract
     from paramora.query_ast import QueryAst
 
-type MongoFilter = dict[str, Any]
-type MongoSort = list[tuple[str, int]]
+MongoFilter: TypeAlias = dict[str, Any]
+MongoSort: TypeAlias = list[tuple[str, int]]
 
-MONGO_OPS: Mapping[str, str] = {
+MONGO_OPS: dict[str, str] = {
     "ne": "$ne",
     "gt": "$gt",
     "gte": "$gte",
@@ -53,48 +51,42 @@ class MongoQuery:
 class MongoEmitter(QueryEmitter[MongoQuery]):
     """Compiles Paramora AST into a MongoDB query object."""
 
-    def emit(self, ast: QueryAst, fields: Mapping[str, QueryField]) -> MongoQuery:
-        """Emit a MongoDB query from an AST.
-
-        Args:
-            ast: Backend-neutral query AST.
-            fields: Schema fields by public name.
-
-        Returns:
-            A MongoDB query object.
-        """
+    def emit(self, ast: QueryAst, contract: CompiledContract) -> MongoQuery:
+        """Emit a MongoDB query using precompiled field metadata."""
+        fields = contract.fields
+        fields_get = fields.get
         filter_doc: MongoFilter = {}
+        filter_get = filter_doc.get
+
         for node in ast.filters:
-            field_name = (
-                fields[node.field].backend_name(node.field)
-                if node.field in fields
-                else node.field
-            )
-            if node.op == "eq":
-                existing = filter_doc.get(field_name)
+            field = fields_get(node.field)
+            field_name = field.backend_name if field is not None else node.field
+            operator = node.op
+            value = node.value
+
+            if operator == "eq":
+                existing = filter_get(field_name)
                 if isinstance(existing, dict):
-                    existing["$eq"] = node.value
+                    existing["$eq"] = value
                 else:
-                    filter_doc[field_name] = node.value
+                    filter_doc[field_name] = value
                 continue
 
-            mongo_op = MONGO_OPS[node.op]
-            existing = filter_doc.get(field_name)
+            mongo_op = MONGO_OPS[operator]
+            existing = filter_get(field_name)
             if existing is None:
-                filter_doc[field_name] = {mongo_op: node.value}
+                filter_doc[field_name] = {mongo_op: value}
             elif isinstance(existing, dict):
-                existing[mongo_op] = node.value
+                existing[mongo_op] = value
             else:
-                filter_doc[field_name] = {"$eq": existing, mongo_op: node.value}
+                filter_doc[field_name] = {"$eq": existing, mongo_op: value}
 
         sort: MongoSort = []
+        sort_append = sort.append
         for node in ast.sort:
-            field_name = (
-                fields[node.field].backend_name(node.field)
-                if node.field in fields
-                else node.field
-            )
-            sort.append((field_name, 1 if node.direction == "asc" else -1))
+            field = fields_get(node.field)
+            field_name = field.backend_name if field is not None else node.field
+            sort_append((field_name, 1 if node.direction == "asc" else -1))
 
         return MongoQuery(
             filter=filter_doc,

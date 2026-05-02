@@ -1,56 +1,80 @@
 # Paramora
 
-Paramora is safe typed query compilation for FastAPI. It turns HTTP query
-parameters into a backend-neutral AST, then emits backend-specific query objects.
-The current MVP is FastAPI-native and currently supports MongoDB output.
+Paramora is safe typed query compilation for FastAPI. It turns user-controlled
+HTTP query parameters into a small backend-neutral AST, then emits backend query
+objects such as MongoDB query dictionaries or parameterized SQL fragments.
 
-> Status: 0.1 pre-release. The API is still allowed to change before the first
-> public package release.
+The package is designed for FastAPI first, uses Python type annotations for query
+contracts, and keeps raw backend operators out of request syntax.
+
+> Status: alpha. Public APIs, AST shapes, error codes, and emitter contracts may
+> change before `1.0`.
 
 ## Documentation
 
-The README gives the short path. The full user and contributor documentation is
-kept in the repository under [`docs/`](https://github.com/EhsanAhmadzadeh/Paramora/tree/main/docs):
+The README is the short introduction. Full documentation lives in `docs/` and is
+linked here so GitHub and PyPI readers can find the same material:
 
 - [Quickstart](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/quickstart.md)
 - [Query contracts](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/contracts.md)
 - [Query syntax](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/query-syntax.md)
 - [Error handling](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/errors.md)
 - [MongoDB backend](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/mongodb.md)
+- [SQL backend](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/sql.md)
+- [Python support policy](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/python-support.md)
 - [Development with uv](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/development.md)
 - [Testing strategy](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/testing.md)
-- [Profiling and future Rust hotspots](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/profiling-and-rust.md)
+- [Profiling and future hotspots](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/profiling-and-rust.md)
 
-These docs live on the main branch so GitHub, source distributions, and PyPI
-readers can find the same authoritative material. The wheel only needs the
-runtime `paramora` package; docs do not need to be installed with the package.
+Docs live on the main branch. Wheels include only the runtime `paramora` package;
+source distributions can include docs for maintainers and contributors.
 
 ## Installation
 
-Paramora is designed for FastAPI applications. Once the package is published
-on PyPI, install it with:
+Paramora is uv-friendly:
 
 ```bash
 uv add paramora
-````
+```
 
-For local development from the repository:
+pip also works:
+
+```bash
+pip install paramora
+```
+
+For local development:
 
 ```bash
 uv sync --group dev
 ```
 
-## Quickstart
+## Requirements
 
-Define a type-checker-friendly query contract with `typing.Annotated`, pass it to
-`Query`, and mount it with FastAPI using `Depends(item_query)`.
+Paramora supports Python `3.10+` and FastAPI `0.115+`.
+
+The project targets Python 3.10 as the compatibility baseline. Newer Python
+versions are supported through CI and tooling, but runtime code must remain valid
+on Python 3.10. The minimum supported Python version may be raised in future
+major or minor releases after older versions reach end-of-life and the ecosystem
+moves forward. Any such change should be documented in the changelog and release
+notes.
+
+The code intentionally avoids Python 3.12+ only syntax such as PEP 695 `type`
+alias declarations and new generic function syntax, so users on 3.10 and 3.11
+can install the package.
+
+## Quickstart with MongoDB
+
+Define a query contract with `typing.Annotated`, pass it to `Query`, and mount it
+as a FastAPI dependency.
 
 ```python
 from datetime import datetime
 from typing import Annotated
 
 from fastapi import Depends, FastAPI
-from paramora import CompiledQuery, Query, QueryContract, query_field
+from paramora import CompiledQuery, MongoQuery, Query, QueryContract, query_field
 
 app = FastAPI()
 
@@ -65,12 +89,13 @@ class ItemQuery(QueryContract):
     price: Annotated[float, query_field("eq", "gt", "gte", "lt", "lte")]
 
 
-item_query = Query(ItemQuery, default_limit=20, max_limit=100)
+item_query: Query[MongoQuery] = Query(ItemQuery, default_limit=20, max_limit=100)
 
 
 @app.get("/items")
-def list_items(query: CompiledQuery = Depends(item_query)):
-    mongo = query.to_mongo()
+def list_items(query: CompiledQuery[MongoQuery] = Depends(item_query)):
+    mongo = query.output
+
     return list(
         collection
         .find(mongo.filter)
@@ -86,7 +111,7 @@ Request:
 /items?status__in=free,busy&active=true&sort=-created_at&limit=20
 ```
 
-Mongo output:
+Compiled output:
 
 ```python
 MongoQuery(
@@ -97,31 +122,38 @@ MongoQuery(
 )
 ```
 
+## SQL backend preview
+
+Paramora now ships an initial SQL emitter. It returns parameterized SQL fragments
+instead of complete SQL strings. Values are returned separately in `params`.
+
+```python
+from paramora import Query, SqlEmitter, SqlQuery
+
+item_query: Query[SqlQuery] = Query(ItemQuery, emitter=SqlEmitter())
+compiled = item_query.parse({"price__gte": "10", "status__in": "free,busy"})
+sql = compiled.output
+
+assert sql.where == '"price" >= ? AND "status" IN (?, ?)'
+assert sql.params == (10.0, "free", "busy")
+```
+
+The SQL backend is intentionally conservative. It validates identifiers, quotes
+columns by default, and never interpolates user values into SQL text. The test
+suite includes SQLite integration tests that execute emitted SQL fragments
+against an in-memory database. It is a foundation for future SQLAlchemy and
+driver-specific integrations.
+
 ## Modes
 
-Paramora has one simple mode rule:
+Paramora has one mode rule:
 
 - `Query()` has no contract and defaults to loose mode.
 - `Query(MyContract)` has a contract and defaults to strict mode.
 
-Loose mode is useful for prototypes and internal tools:
-
-```python
-loose_query = Query(default_limit=20, max_limit=100)
-```
-
-Strict mode is the recommended shape for public endpoints:
-
-```python
-class ItemQuery(QueryContract):
-    status: Annotated[str, query_field("eq", "in")]
-    active: bool
-
-item_query = Query(ItemQuery)
-```
-
-Strict mode rejects unknown fields, unknown operators, disallowed operators,
-invalid values, non-sortable sort fields, and invalid pagination values.
+Strict mode is recommended for public endpoints. Loose mode is useful for trusted
+internal tools and prototypes. Loose mode still rejects raw backend operator
+syntax such as `$where` or `price__$gte`.
 
 ## Contract fields
 
@@ -145,47 +177,20 @@ class ItemQuery(QueryContract):
 ```
 
 The positional operator API is deliberate: editors such as Pylance can provide
-better autocomplete for `query_field("eq", "in")` than for a nested tuple such as
-`allow=("eq", "in")`.
+better autocomplete for `query_field("eq", "in")` than for nested tuple APIs.
 
-## Supported query syntax
+## Backend output and generics
 
-Paramora supports Django-style query operators:
-
-```http
-/items?status__in=free,busy&active=true&created_at__gte=2026-01-01&sort=-created_at&limit=20&offset=0
-```
-
-Supported operators in 0.1:
-
-- `eq`
-- `ne`
-- `gt`
-- `gte`
-- `lt`
-- `lte`
-- `in`
-- `nin`
-
-A bare field defaults to equality, so `?active=true` is equivalent to
-`?active__eq=true`.
-
-## MongoDB backend
-
-MongoDB is the first supported backend. Paramora currently emits:
-
-- Mongo filter dictionaries
-- PyMongo-compatible sort pairs
-- `limit`
-- `offset`
+`Query` is generic over the backend output type:
 
 ```python
-mongo = query.to_mongo()
-collection.find(mongo.filter).sort(mongo.sort).skip(mongo.offset).limit(mongo.limit)
+mongo_query: Query[MongoQuery] = Query(ItemQuery)
+sql_query: Query[SqlQuery] = Query(ItemQuery, emitter=SqlEmitter())
 ```
 
-Other backends are planned after the public contract, AST, and error model are
-stable.
+`CompiledQuery[T].output` has the selected backend type. This avoids redundant
+APIs such as `to(...)` and `to_mongo()` and keeps the hot path simple: parsing
+produces an AST once, then the configured emitter produces one backend output.
 
 ## Error handling
 
@@ -204,26 +209,8 @@ Validation errors are structured and FastAPI-compatible:
 }
 ```
 
-See [Error handling](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/errors.md) for stable error code semantics.
-
-## Security notes
-
-Paramora intentionally does not expose raw Mongo operators in query parameters.
-Use Paramora operators:
-
-```http
-/items?price__gte=10
-```
-
-Do not expose raw backend syntax:
-
-```http
-/items?price[$gte]=10
-/items?price__$gte=10
-```
-
-Loose mode is schema-relaxed, not raw-database mode. Raw backend operators are
-still rejected by default.
+See [Error handling](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/errors.md)
+for stable error-code semantics.
 
 ## Development
 
@@ -238,8 +225,6 @@ uv run pyright
 ```
 
 The default pytest configuration runs coverage with missing-line reporting.
-Mongo-like execution tests use `mongomock`; parser and coercion behavior are
+Mongo-like execution tests use `mongomock`; SQL execution tests use in-memory
+SQLite from the Python standard library; parser and coercion behavior are
 covered by focused unit tests.
-
-See [Development with uv](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/development.md) and
-[Testing strategy](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/testing.md) for the full workflow.

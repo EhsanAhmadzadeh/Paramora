@@ -9,13 +9,12 @@ with a documented compatibility note.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal, NotRequired, TypedDict, TYPE_CHECKING
-
+from typing import TYPE_CHECKING, Any, Literal, TypeAlias, TypedDict
 
 if TYPE_CHECKING:
     from .query_ast import FilterOperator
 
-type QueryErrorCode = Literal[
+QueryErrorCode: TypeAlias = Literal[
     "query.empty_list",
     "query.invalid_field",
     "query.invalid_operator",
@@ -37,13 +36,13 @@ type QueryErrorCode = Literal[
 ]
 
 
-class QueryErrorDict(TypedDict):
+class QueryErrorDict(TypedDict, total=False):
     """JSON-compatible validation error dictionary."""
 
     loc: list[str]
     msg: str
     type: str
-    input: NotRequired[Any]
+    input: Any
 
 
 @dataclass(frozen=True, slots=True)
