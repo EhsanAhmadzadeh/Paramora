@@ -218,5 +218,5 @@ Only the emitter changes:
 
 ```python
 mongo_query = Query(ItemQuery)
-sql_query = Query(ItemQuery, emitter=SqlEmitter())
+sql_query = Query(ItemQuery, emitter=SqliteEmitter())
 ```

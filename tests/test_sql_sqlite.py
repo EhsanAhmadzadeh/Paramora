@@ -5,10 +5,13 @@ from typing import TYPE_CHECKING, Annotated
 
 import pytest
 
-from paramora import Query, QueryContract, SqlEmitter, SqlQuery, query_field
+from paramora import Query, QueryContract, SqliteEmitter, SqlQuery, query_field
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+
+
+pytestmark = [pytest.mark.integration, pytest.mark.sql]
 
 
 class SqliteItemQuery(QueryContract):
@@ -60,21 +63,14 @@ def sqlite_query() -> Query[SqlQuery]:
         SqliteItemQuery,
         default_limit=20,
         max_limit=100,
-        emitter=SqlEmitter(),
+        emitter=SqliteEmitter(),
     )
 
 
 def fetch_item_ids(connection: sqlite3.Connection, sql_query: SqlQuery) -> list[int]:
     """Execute emitted SQL fragments against SQLite and return matching item IDs."""
-    where_clause = f" WHERE {sql_query.where}" if sql_query.where else ""
-    order_clause = (
-        f" ORDER BY {', '.join(sql_query.order_by)}" if sql_query.order_by else ""
-    )
-    statement = f"SELECT id FROM items{where_clause}{order_clause} LIMIT ? OFFSET ?"
-    cursor = connection.execute(
-        statement,
-        (*sql_query.params, sql_query.limit, sql_query.offset),
-    )
+    statement = sql_query.select_statement("items", columns=("id",))
+    cursor = connection.execute(statement.sql, statement.params)
     return [int(row["id"]) for row in cursor.fetchall()]
 
 
@@ -226,7 +222,7 @@ def test_sqlite_integration_supports_loose_mode_for_safe_identifiers(
 ) -> None:
     # Arrange
     query: Query[SqlQuery] = Query(
-        default_limit=20, max_limit=100, emitter=SqlEmitter()
+        default_limit=20, max_limit=100, emitter=SqliteEmitter()
     )
     params = {"status": "busy", "sort": "-price"}
 

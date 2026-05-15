@@ -11,6 +11,7 @@ fragments.
 
 - [Usage guide](usage.md) — full practical guide with MongoDB, SQL, strict mode,
   loose mode, aliases, required fields, sorting, pagination, and errors.
+- [How-to guides](how-to.md) — scenario-based recipes for common application needs.
 - [Quickstart](quickstart.md) — smallest useful FastAPI examples.
 - [Query contracts](contracts.md) — how to define typed query contracts.
 - [Query syntax](query-syntax.md) — supported HTTP query parameters and operators.
@@ -19,7 +20,7 @@ fragments.
 
 - [MongoDB backend](mongodb.md) — using `MongoQuery` with PyMongo-style
   collections.
-- [SQL backend](sql.md) — using `SqlEmitter` and `SqlQuery` with DB-API-style
+- [SQL backend](sql.md) — using `SqliteEmitter`, `PostgresEmitter`, and `SqlQuery` with raw SQL
   drivers such as SQLite.
 
 ## Reliability and maintenance
@@ -27,10 +28,12 @@ fragments.
 - [Error handling](errors.md) — structured errors and FastAPI 422 payloads.
 - [Testing strategy](testing.md) — unit, FastAPI, MongoDB, SQLite, typing, and
   benchmark coverage.
+- [Benchmarking guide](benchmarking.md) — timing benchmarks, suite runs, and regression comparison.
 - [Benchmarking, profiling, and future Rust hotspots](profiling-and-rust.md) —
   how to measure parser/emitter performance.
 - [Development with uv](development.md) — local setup and quality gates.
 - [Python support policy](python-support.md) — supported Python versions.
+- [Changelog](../CHANGELOG.md) — release notes and notable changes.
 
 ## How the docs are organized
 

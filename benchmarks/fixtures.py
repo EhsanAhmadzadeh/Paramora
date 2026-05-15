@@ -12,9 +12,16 @@ from dataclasses import dataclass
 from datetime import datetime  # noqa: TC003
 from typing import Annotated, TypeAlias
 
-from paramora import MongoQuery, Query, QueryContract, QueryValidationError, query_field
+from paramora import (
+    MongoQuery,
+    Query,
+    QueryContract,
+    QueryErrorDict,
+    QueryValidationError,
+    query_field,
+)
 from paramora.emitters.mongo import MongoEmitter
-from paramora.emitters.sql import SqlEmitter, SqlQuery
+from paramora.emitters.sql import PostgresEmitter, SqlQuery, SqlStatement, SqliteEmitter
 
 BenchmarkResult: TypeAlias = object
 BenchmarkRunner: TypeAlias = Callable[[], BenchmarkResult]
@@ -64,7 +71,13 @@ STRICT_SQL_QUERY: Query[SqlQuery] = Query(
     ItemQuery,
     default_limit=20,
     max_limit=100,
-    emitter=SqlEmitter(),
+    emitter=SqliteEmitter(),
+)
+STRICT_POSTGRES_QUERY: Query[SqlQuery] = Query(
+    ItemQuery,
+    default_limit=20,
+    max_limit=100,
+    emitter=PostgresEmitter(),
 )
 LOOSE_MONGO_QUERY: Query[MongoQuery] = Query(
     default_limit=20,
@@ -74,7 +87,8 @@ LOOSE_MONGO_QUERY: Query[MongoQuery] = Query(
 
 STRICT_AST = STRICT_MONGO_QUERY.parse(STRICT_PARAMS).ast
 MONGO_EMITTER = MongoEmitter()
-SQL_EMITTER = SqlEmitter()
+SQL_EMITTER = SqliteEmitter()
+POSTGRES_EMITTER = PostgresEmitter()
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,8 +112,31 @@ def run_strict_mongo_parse() -> MongoQuery:
 
 
 def run_strict_sql_parse() -> SqlQuery:
-    """Parse strict params and emit SQL output."""
+    """Parse strict params and emit SQLite-style SQL output."""
     return STRICT_SQL_QUERY.parse(STRICT_PARAMS).output
+
+
+def run_strict_postgres_parse() -> SqlQuery:
+    """Parse strict params and emit PostgreSQL-style SQL output."""
+    return STRICT_POSTGRES_QUERY.parse(STRICT_PARAMS).output
+
+
+def run_sqlite_statement() -> SqlStatement:
+    """Parse strict params and build a SQLite SELECT statement."""
+    sql = STRICT_SQL_QUERY.parse(STRICT_PARAMS).output
+    return sql.select_statement(
+        "items",
+        columns=("id", "status", "active", "created_at", "price"),
+    )
+
+
+def run_postgres_statement() -> SqlStatement:
+    """Parse strict params and build a PostgreSQL SELECT statement."""
+    sql = STRICT_POSTGRES_QUERY.parse(STRICT_PARAMS).output
+    return sql.select_statement(
+        "items",
+        columns=("id", "status", "active", "created_at", "price"),
+    )
 
 
 def run_loose_mongo_parse() -> MongoQuery:
@@ -107,12 +144,12 @@ def run_loose_mongo_parse() -> MongoQuery:
     return LOOSE_MONGO_QUERY.parse(LOOSE_PARAMS).output
 
 
-def run_invalid_strict_parse() -> list[dict[str, object]]:
+def run_invalid_strict_parse() -> list[QueryErrorDict]:
     """Parse invalid strict params and return structured validation errors."""
     try:
         STRICT_MONGO_QUERY.parse(INVALID_PARAMS)
     except QueryValidationError as exc:
-        return exc.to_list() # type: ignore
+        return exc.to_list()
     raise RuntimeError("Invalid benchmark params unexpectedly parsed successfully.")
 
 
@@ -134,8 +171,23 @@ SCENARIOS: dict[str, BenchmarkScenario] = {
     ),
     "strict-sql": BenchmarkScenario(
         name="strict-sql",
-        description="Strict contract parse plus SQL emission.",
+        description="Strict contract parse plus SQLite-style SQL emission.",
         runner=run_strict_sql_parse,
+    ),
+    "strict-postgres": BenchmarkScenario(
+        name="strict-postgres",
+        description="Strict contract parse plus PostgreSQL-style SQL emission.",
+        runner=run_strict_postgres_parse,
+    ),
+    "sqlite-statement": BenchmarkScenario(
+        name="sqlite-statement",
+        description="Strict parse plus SQLite SELECT statement composition.",
+        runner=run_sqlite_statement,
+    ),
+    "postgres-statement": BenchmarkScenario(
+        name="postgres-statement",
+        description="Strict parse plus PostgreSQL SELECT statement composition.",
+        runner=run_postgres_statement,
     ),
     "loose-mongo": BenchmarkScenario(
         name="loose-mongo",

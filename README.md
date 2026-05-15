@@ -70,7 +70,7 @@ from paramora import CompiledQuery, Query, QueryContract, query_field
 Backend-specific outputs:
 
 ```python
-from paramora import MongoQuery, SqlEmitter, SqlQuery
+from paramora import MongoQuery, PostgresEmitter, SqlQuery, SqliteEmitter
 ```
 
 The important rule is:
@@ -140,9 +140,8 @@ MongoQuery(
 
 ## SQL quickstart
 
-Paramora's SQL backend emits **parameterized fragments**, not a complete SQL
-statement. Your application still owns table names, selected columns,
-connections, transactions, joins, and authorization filters.
+Paramora's SQL backend emits **parameterized raw SQL fragments**. The first
+supported raw-SQL targets are SQLite and PostgreSQL.
 
 ```python
 from datetime import datetime
@@ -153,8 +152,8 @@ from paramora import (
     CompiledQuery,
     Query,
     QueryContract,
-    SqlEmitter,
     SqlQuery,
+    SqliteEmitter,
     query_field,
 )
 
@@ -169,7 +168,7 @@ class ItemQuery(QueryContract):
 
 item_query: Query[SqlQuery] = Query(
     ItemQuery,
-    emitter=SqlEmitter(param_style="qmark"),
+    emitter=SqliteEmitter(),
     default_limit=20,
     max_limit=100,
 )
@@ -178,23 +177,11 @@ item_query: Query[SqlQuery] = Query(
 @app.get("/items")
 def list_items(query: CompiledQuery[SqlQuery] = Depends(item_query)):
     sql = query.output
-
-    where_clause = f" WHERE {sql.where}" if sql.where else ""
-    order_clause = f" ORDER BY {', '.join(sql.order_by)}" if sql.order_by else ""
-
-    statement = f"""
-    SELECT id, status, created_at, price
-    FROM items
-    {where_clause}
-    {order_clause}
-    LIMIT ? OFFSET ?
-    """
-
-    rows = connection.execute(
-        statement,
-        (*sql.params, sql.limit, sql.offset),
-    ).fetchall()
-
+    statement = sql.select_statement(
+        "items",
+        columns=("id", "status", "created_at", "price"),
+    )
+    rows = connection.execute(statement.sql, statement.params).fetchall()
     return [dict(row) for row in rows]
 ```
 
@@ -204,17 +191,28 @@ Request:
 GET /items?status__in=free,busy&price__gte=10&sort=-created_at
 ```
 
-Emitted SQL output:
+Generated SQLite statement:
 
 ```python
-SqlQuery(
-    where='"status" IN (?, ?) AND "price" >= ?',
-    params=("free", "busy", 10.0),
-    order_by=('"created_at" DESC',),
-    limit=20,
-    offset=0,
+SqlStatement(
+    sql='SELECT "id", "status", "created_at", "price" FROM "items" '
+        'WHERE "status" IN (?, ?) AND "price" >= ? '
+        'ORDER BY "created_at" DESC LIMIT ? OFFSET ?',
+    params=("free", "busy", 10.0, 20, 0),
 )
 ```
+
+For PostgreSQL raw SQL, use `PostgresEmitter`:
+
+```python
+from paramora import PostgresEmitter, Query, SqlQuery
+
+item_query: Query[SqlQuery] = Query(ItemQuery, emitter=PostgresEmitter())
+```
+
+`PostgresEmitter()` emits `%s` placeholders by default for psycopg-style drivers.
+Use `PostgresEmitter(param_style="dollar")` when your driver expects `$1`, `$2`,
+... placeholders.
 
 Values are returned separately in `params`; they should be passed to your driver
 as bound parameters. Do not format user values into SQL strings.
@@ -330,6 +328,7 @@ The README is the short introduction. Full documentation lives in `docs/`:
 
 - [Documentation index](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/README.md)
 - [Usage guide](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/usage.md)
+- [How-to guides](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/how-to.md)
 - [Quickstart](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/quickstart.md)
 - [Query contracts](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/contracts.md)
 - [Query syntax](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/query-syntax.md)
@@ -339,10 +338,29 @@ The README is the short introduction. Full documentation lives in `docs/`:
 - [Python support policy](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/python-support.md)
 - [Development with uv](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/development.md)
 - [Testing strategy](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/testing.md)
-- [Benchmarking, profiling, and future Rust hotspots](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/profiling-and-rust.md)
+- [Benchmarking guide](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/benchmarking.md)
+- [Profiling and future Rust hotspots](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/profiling-and-rust.md)
+- [Changelog](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/CHANGELOG.md)
 
 Docs live on the main branch. Wheels include only the runtime `paramora` package;
 source distributions can include docs for maintainers and contributors.
+
+## Benchmarking
+
+Paramora includes lightweight benchmark scripts for parser and emitter work. Use
+them before and after performance-sensitive changes:
+
+```bash
+uv run python benchmarks/bench_all.py --json benchmark-results/before.json
+uv run python benchmarks/bench_all.py --json benchmark-results/after.json
+uv run python benchmarks/compare_results.py benchmark-results/before.json benchmark-results/after.json
+```
+
+Use cProfile when you need to find hotspots:
+
+```bash
+uv run python benchmarks/profile_parse.py --scenario strict-sql --iterations 500000 --limit 40
+```
 
 ## Development
 
@@ -356,6 +374,14 @@ uv run ruff check .
 uv run pyright
 ```
 
+Optional MongoDB/PostgreSQL integration dependencies live in the `integration`
+group:
+
+```bash
+uv sync --group dev --group integration
+uv run pytest -vv
+```
+
 The test suite includes focused parser/coercion tests, FastAPI dependency tests,
-MongoDB-style tests with `mongomock`, and SQLite integration tests for emitted
-SQL fragments.
+MongoDB-style tests with `mongomock`, SQLite integration tests, and optional
+PostgreSQL integration tests for emitted raw SQL fragments.

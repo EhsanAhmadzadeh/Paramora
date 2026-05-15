@@ -1,65 +1,82 @@
-# SQL backend
+# Raw SQL backend
 
-Paramora's SQL backend compiles the backend-neutral AST into parameterized SQL
-fragments. It does not open a database connection, does not execute SQL, and does
-not try to be an ORM.
+Paramora's SQL backend emits **parameterized raw SQL fragments**. It is not an
+ORM and it does not open database connections. The application remains
+responsible for table ownership, selected columns, joins, authorization filters,
+transactions, and execution.
 
-Use SQL output when you want Paramora's query contracts, validation, and type
-coercion, but your application owns the actual SQL execution layer.
+The SQL backend is designed for the first two raw-SQL targets:
 
-## Output shape
+- SQLite through `SqliteEmitter`, which uses `?` placeholders.
+- PostgreSQL through `PostgresEmitter`, which uses `%s` placeholders by default
+  for psycopg-style drivers and can also emit `$1`, `$2`, ... placeholders.
 
-`SqlEmitter` returns `SqlQuery`:
+## Core idea
+
+A request such as:
+
+```http
+GET /items?status__in=free,busy&price__gte=10&sort=-created_at&limit=20
+```
+
+is parsed into a backend-neutral AST, then emitted as SQL fragments:
 
 ```python
 SqlQuery(
-    where='"price" >= ? AND "status" IN (?, ?)',
-    params=(10.0, "free", "busy"),
+    where='"status" IN (?, ?) AND "price" >= ?',
+    params=("free", "busy", 10.0),
     order_by=('"created_at" DESC',),
     limit=20,
     offset=0,
+    param_style="qmark",
 )
 ```
 
-Fields:
+Values are never interpolated into SQL text. They are returned in `params` and
+must be passed to the database driver separately.
 
-- `where`: SQL predicate fragment without the leading `WHERE`
-- `params`: bound values for placeholders in `where`
-- `order_by`: SQL ordering fragments without the leading `ORDER BY`
-- `limit`: validated limit integer
-- `offset`: validated offset integer
-
-## Why fragments instead of a full SELECT?
-
-A complete SQL query is application-specific. Paramora should not decide:
-
-- table names
-- selected columns
-- joins
-- tenant filters
-- authorization filters
-- transactions
-- connection lifetime
-- driver or ORM integration
-
-Paramora focuses on the part that comes from HTTP query parameters: filters,
-sorting, limit, and offset.
-
-## Complete FastAPI + SQLite-style example
+## Public SQL objects
 
 ```python
-from datetime import datetime
+from paramora import PostgresEmitter, SqlEmitter, SqlQuery, SqlStatement, SqliteEmitter
+```
+
+`SqlQuery` contains generated fragments:
+
+- `where`: predicate expression without the leading `WHERE` keyword
+- `params`: bound parameters for the placeholders inside `where`
+- `order_by`: ordering expressions without the leading `ORDER BY` keyword
+- `limit`: validated limit integer
+- `offset`: validated offset integer
+- `param_style`: placeholder style used by the output
+
+Convenience methods:
+
+```python
+sql.where_clause()          # "WHERE ..." or ""
+sql.order_by_clause()       # "ORDER BY ..." or ""
+sql.limit_offset_clause()   # "LIMIT ? OFFSET ?", "LIMIT %s OFFSET %s", etc.
+sql.statement_params()      # (*sql.params, sql.limit, sql.offset)
+```
+
+For simple `SELECT` queries, use `select_statement(...)`:
+
+```python
+statement = sql.select_statement("items", columns=("id", "status", "price"))
+
+connection.execute(statement.sql, statement.params)
+```
+
+`select_statement(...)` validates and quotes table and column identifiers before
+placing them into SQL text.
+
+## SQLite example
+
+```python
 from typing import Annotated
 
 from fastapi import Depends, FastAPI
-from paramora import (
-    CompiledQuery,
-    Query,
-    QueryContract,
-    SqlEmitter,
-    SqlQuery,
-    query_field,
-)
+from paramora import CompiledQuery, Query, QueryContract, SqlQuery, SqliteEmitter, query_field
 
 app = FastAPI()
 
@@ -67,13 +84,12 @@ app = FastAPI()
 class ItemQuery(QueryContract):
     status: Annotated[str, query_field("eq", "in", "nin")]
     active: bool
-    created_at: Annotated[datetime, query_field("gte", "lte", sortable=True)]
-    price: Annotated[float, query_field("eq", "gt", "gte", "lt", "lte")]
+    price: Annotated[float, query_field("eq", "gte", "lte", sortable=True)]
 
 
 item_query: Query[SqlQuery] = Query(
     ItemQuery,
-    emitter=SqlEmitter(param_style="qmark"),
+    emitter=SqliteEmitter(),
     default_limit=20,
     max_limit=100,
 )
@@ -82,238 +98,206 @@ item_query: Query[SqlQuery] = Query(
 @app.get("/items")
 def list_items(query: CompiledQuery[SqlQuery] = Depends(item_query)):
     sql = query.output
-
-    where_clause = f" WHERE {sql.where}" if sql.where else ""
-    order_clause = f" ORDER BY {', '.join(sql.order_by)}" if sql.order_by else ""
-
-    statement = f"""
-    SELECT id, status, active, created_at, price
-    FROM items
-    {where_clause}
-    {order_clause}
-    LIMIT ? OFFSET ?
-    """
-
-    rows = connection.execute(
-        statement,
-        (*sql.params, sql.limit, sql.offset),
-    ).fetchall()
-
+    statement = sql.select_statement(
+        "items",
+        columns=("id", "status", "active", "price"),
+    )
+    rows = connection.execute(statement.sql, statement.params).fetchall()
     return [dict(row) for row in rows]
 ```
 
-## Example request and output
-
-Request:
-
-```http
-GET /items?status__in=free,busy&active=true&price__gte=10&sort=-created_at
-```
-
-Output:
+Example generated statement:
 
 ```python
-SqlQuery(
-    where='"status" IN (?, ?) AND "active" = ? AND "price" >= ?',
-    params=("free", "busy", True, 10.0),
-    order_by=('"created_at" DESC',),
-    limit=20,
-    offset=0,
+SqlStatement(
+    sql='SELECT "id", "status", "active", "price" FROM "items" '
+        'WHERE "status" IN (?, ?) AND "price" >= ? '
+        'ORDER BY "price" DESC LIMIT ? OFFSET ?',
+    params=("free", "busy", 10.0, 20, 0),
 )
 ```
 
-Final statement composition:
+## PostgreSQL example
+
+For psycopg-style drivers, use `PostgresEmitter()`:
 
 ```python
-where_clause = f" WHERE {sql.where}" if sql.where else ""
-order_clause = f" ORDER BY {', '.join(sql.order_by)}" if sql.order_by else ""
+from typing import Annotated
 
-statement = f"""
-SELECT id, status, active, created_at, price
-FROM items
-{where_clause}
-{order_clause}
-LIMIT ? OFFSET ?
-"""
+from fastapi import Depends, FastAPI
+from paramora import CompiledQuery, PostgresEmitter, Query, QueryContract, SqlQuery, query_field
 
-rows = connection.execute(
-    statement,
-    (*sql.params, sql.limit, sql.offset),
-).fetchall()
+app = FastAPI()
+
+
+class ItemQuery(QueryContract):
+    status: Annotated[str, query_field("eq", "in", "nin")]
+    active: bool
+    price: Annotated[float, query_field("eq", "gte", "lte", sortable=True)]
+
+
+item_query: Query[SqlQuery] = Query(
+    ItemQuery,
+    emitter=PostgresEmitter(),
+    default_limit=20,
+    max_limit=100,
+)
+
+
+@app.get("/items")
+def list_items(query: CompiledQuery[SqlQuery] = Depends(item_query)):
+    sql = query.output
+    statement = sql.select_statement("items", columns=("id", "status", "price"))
+
+    with connection.cursor() as cursor:
+        cursor.execute(statement.sql, statement.params)
+        rows = cursor.fetchall()
+
+    return rows
 ```
 
-## Parameter styles
-
-Different DB-API drivers expect different placeholder styles. Configure the SQL
-emitter with the style your driver expects.
+Example generated statement:
 
 ```python
-SqlEmitter(param_style="qmark")    # ?
-SqlEmitter(param_style="format")   # %s
-SqlEmitter(param_style="numeric")  # :1, :2
-SqlEmitter(param_style="pyformat") # %(p1)s, %(p2)s
+SqlStatement(
+    sql='SELECT "id", "status", "price" FROM "items" '
+        'WHERE "status" IN (%s, %s) AND "price" >= %s '
+        'ORDER BY "price" DESC LIMIT %s OFFSET %s',
+    params=("free", "busy", 10.0, 20, 0),
+)
 ```
 
-Examples:
+For drivers that expect PostgreSQL `$1`, `$2`, ... placeholders, configure:
 
 ```python
-Query(ItemQuery, emitter=SqlEmitter(param_style="qmark"))
-Query(ItemQuery, emitter=SqlEmitter(param_style="format"))
+PostgresEmitter(param_style="dollar")
 ```
 
-`SqlQuery.params` is always a tuple of values. If your driver expects a mapping
-for `pyformat`, adapt it in your data access layer.
+## Placeholder styles
+
+Supported positional placeholder styles:
+
+```python
+SqliteEmitter()                         # ?
+PostgresEmitter()                       # %s
+PostgresEmitter(param_style="dollar")   # $1, $2
+SqlEmitter(param_style="numeric")       # :1, :2
+SqlEmitter(param_style="format")        # %s
+SqlEmitter(param_style="qmark")         # ?
+```
+
+`SqlQuery.params` is always a positional tuple. Paramora intentionally avoids
+named `pyformat` output for now because different drivers handle named parameter
+mappings differently. This keeps the initial SQL support predictable and easy to
+test.
+
+## Strict mode with SQL
+
+Strict mode is recommended for public SQL APIs:
+
+```python
+item_query: Query[SqlQuery] = Query(ItemQuery, emitter=SqliteEmitter())
+```
+
+Because a contract is provided, Paramora rejects unknown fields, unsupported
+operators, and non-sortable sort fields before SQL is emitted. SQL identifiers
+come from the contract and aliases you wrote, not directly from arbitrary client
+input.
+
+## Loose mode with SQL
+
+Loose mode is available when you do not pass a contract:
+
+```python
+loose_query: Query[SqlQuery] = Query(emitter=SqliteEmitter())
+```
+
+Loose mode allows unknown fields, but identifiers are still validated and quoted.
+Raw backend operator syntax is still rejected. Values remain strings unless a
+field contract exists.
+
+Loose mode is useful for trusted internal tools and prototypes. For public APIs,
+prefer strict contracts.
 
 ## Identifier safety
 
-SQL values can be bound as parameters, but identifiers cannot. Column names must
-therefore be controlled and validated before they are interpolated into SQL text.
+SQL identifiers cannot be bound as parameters, so Paramora validates and quotes
+identifiers before interpolation.
 
-Paramora validates identifiers and quotes them by default:
-
-```python
-SqlEmitter(quote_identifiers=True)
-```
-
-A contract alias such as:
+Safe aliases:
 
 ```python
 class ItemQuery(QueryContract):
     created_at: Annotated[
-        datetime,
+        str,
         query_field("gte", "lte", sortable=True, alias="items.created_at"),
     ]
 ```
 
-emits:
+This emits:
 
 ```sql
 "items"."created_at"
 ```
 
-Unsafe identifiers raise `ValueError` during emission.
-
-## Strict mode with SQL
-
-Strict mode is recommended for public SQL-backed APIs.
+Unsafe identifiers raise `ValueError` during emission:
 
 ```python
-item_query: Query[SqlQuery] = Query(ItemQuery, emitter=SqlEmitter())
+query_field("eq", alias="items.status; DROP TABLE items")
 ```
-
-Strict mode means every SQL identifier came from your contract, not directly from
-untrusted input. That is the safest way to expose filtering over SQL databases.
-
-## Loose mode with SQL
-
-Loose mode accepts unknown fields when there is no contract:
-
-```python
-loose_query: Query[SqlQuery] = Query(emitter=SqlEmitter())
-```
-
-Request:
-
-```http
-GET /items?status=free&price__gte=10&sort=-created_at
-```
-
-Output:
-
-```python
-SqlQuery(
-    where='"status" = ? AND "price" >= ?',
-    params=("free", "10"),
-    order_by=('"created_at" DESC',),
-    limit=50,
-    offset=0,
-)
-```
-
-Unknown values remain strings. Unknown identifiers must still pass Paramora's
-identifier validation.
-
-Loose SQL mode is best reserved for trusted internal tools. For public APIs,
-prefer strict contracts.
 
 ## Injection resistance
 
-Paramora never interpolates user values into SQL text.
-
-Request:
+User values are always bound separately:
 
 ```http
-GET /items?status=free'%20OR%201=1%20--
+GET /items?status=free'%20OR%20TRUE%20--
 ```
 
-Output:
+emits SQL like:
 
 ```python
-SqlQuery(
-    where='"status" = ?',
-    params=("free' OR 1=1 --",),
-    order_by=(),
-    limit=50,
-    offset=0,
+SqlStatement(
+    sql='SELECT "id" FROM "items" WHERE "status" = %s LIMIT %s OFFSET %s',
+    params=("free' OR TRUE --", 50, 0),
 )
 ```
 
-The payload is data, not executable SQL, as long as you pass `params` to your
-driver as bound parameters.
+The payload is data, not executable SQL, as long as you pass `statement.params`
+to the driver instead of string-formatting values into SQL.
 
-Do this:
+Do:
 
 ```python
-connection.execute(statement, (*sql.params, sql.limit, sql.offset))
+cursor.execute(statement.sql, statement.params)
 ```
 
-Do not do this:
+Do not:
 
 ```python
-# Wrong: never string-format user values into SQL.
 statement = f"SELECT * FROM items WHERE status = '{user_status}'"
 ```
 
-## Operators
+## Testing status
 
-The SQL backend supports the same core operators as MongoDB:
+The SQL backend includes:
 
-| Paramora operator | SQL output |
-| --- | --- |
-| `eq` | `=` |
-| `ne` | `!=` |
-| `gt` | `>` |
-| `gte` | `>=` |
-| `lt` | `<` |
-| `lte` | `<=` |
-| `in` | `IN (...)` |
-| `nin` | `NOT IN (...)` |
+- emitter tests for placeholder styles, identifier validation, and statement
+  composition;
+- SQLite integration tests using the standard-library `sqlite3` module;
+- PostgreSQL SQL-shape tests for psycopg-style and `$1` placeholder output;
+- an optional PostgreSQL integration test that runs only when
+  `PARAMORA_POSTGRES_DSN` is configured.
 
-## Current scope
-
-The SQL backend is intentionally conservative. It does not currently support:
-
-- joins
-- boolean groups such as nested `OR`
-- aggregations
-- raw SQL snippets
-- full-text search
-- SQLAlchemy expression objects
-- database-specific operators
-
-Future versions may add SQLAlchemy or driver-specific emitters after the AST,
-error model, and extension API stabilize further.
-
-## Testing SQL behavior
-
-Paramora includes two SQL test layers:
-
-1. emitter tests that assert exact `SqlQuery` output
-2. SQLite integration tests that execute emitted fragments against an in-memory
-   database
-
-Run SQL tests with:
+Run the normal SQL tests:
 
 ```bash
-uv run pytest -vv tests/test_sql_emitter.py tests/test_sql_sqlite.py
+uv run pytest -vv tests/test_sql_emitter.py tests/test_sql_sqlite.py tests/test_sql_postgres.py
+```
+
+Run the optional PostgreSQL integration test:
+
+```bash
+PARAMORA_POSTGRES_DSN='postgresql://user:pass@localhost:5432/dbname' \
+  uv run pytest -vv -m postgres
 ```

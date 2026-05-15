@@ -135,8 +135,8 @@ from paramora import (
     CompiledQuery,
     Query,
     QueryContract,
-    SqlEmitter,
     SqlQuery,
+    SqliteEmitter,
     query_field,
 )
 
@@ -152,7 +152,7 @@ class ItemQuery(QueryContract):
 
 item_query: Query[SqlQuery] = Query(
     ItemQuery,
-    emitter=SqlEmitter(param_style="qmark"),
+    emitter=SqliteEmitter(),
     default_limit=20,
     max_limit=100,
 )
@@ -162,21 +162,11 @@ item_query: Query[SqlQuery] = Query(
 def list_items(query: CompiledQuery[SqlQuery] = Depends(item_query)):
     sql = query.output
 
-    where_clause = f" WHERE {sql.where}" if sql.where else ""
-    order_clause = f" ORDER BY {', '.join(sql.order_by)}" if sql.order_by else ""
-
-    statement = f"""
-    SELECT id, status, active, created_at, price
-    FROM items
-    {where_clause}
-    {order_clause}
-    LIMIT ? OFFSET ?
-    """
-
-    rows = connection.execute(
-        statement,
-        (*sql.params, sql.limit, sql.offset),
-    ).fetchall()
+    statement = sql.select_statement(
+        "items",
+        columns=("id", "status", "active", "created_at", "price"),
+    )
+    rows = connection.execute(statement.sql, statement.params).fetchall()
 
     return [dict(row) for row in rows]
 ```
@@ -269,10 +259,10 @@ Unknown field names become SQL identifiers if they pass Paramora's identifier
 safety checks.
 
 ```python
-from paramora import CompiledQuery, Query, SqlEmitter, SqlQuery
+from paramora import CompiledQuery, Query, SqlQuery, SqliteEmitter
 
 loose_sql_query: Query[SqlQuery] = Query(
-    emitter=SqlEmitter(param_style="qmark"),
+    emitter=SqliteEmitter(),
     default_limit=50,
     max_limit=500,
 )
@@ -531,10 +521,10 @@ Use the default emitter for MongoDB:
 item_query: Query[MongoQuery] = Query(ItemQuery)
 ```
 
-Use `SqlEmitter` for SQL fragments:
+Use `SqliteEmitter` or `PostgresEmitter` for raw SQL fragments:
 
 ```python
-item_query: Query[SqlQuery] = Query(ItemQuery, emitter=SqlEmitter())
+item_query: Query[SqlQuery] = Query(ItemQuery, emitter=SqliteEmitter())
 ```
 
 The route typing follows the configured backend output:

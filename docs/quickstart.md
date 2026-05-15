@@ -91,17 +91,17 @@ MongoQuery(
 
 ## Step 2B: use it with SQL
 
-For SQL, configure `SqlEmitter`. Paramora emits parameterized SQL fragments.
+For SQLite, configure `SqliteEmitter`. For PostgreSQL, configure `PostgresEmitter`. Paramora emits parameterized raw SQL fragments.
 
 ```python
 from fastapi import Depends, FastAPI
-from paramora import CompiledQuery, Query, SqlEmitter, SqlQuery
+from paramora import CompiledQuery, Query, SqlQuery, SqliteEmitter
 
 app = FastAPI()
 
 item_query: Query[SqlQuery] = Query(
     ItemQuery,
-    emitter=SqlEmitter(param_style="qmark"),
+    emitter=SqliteEmitter(),
     default_limit=20,
     max_limit=100,
 )

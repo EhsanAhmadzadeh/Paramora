@@ -26,6 +26,9 @@ Useful examples:
 ```bash
 uv run python benchmarks/bench_parse.py --scenario strict-mongo
 uv run python benchmarks/bench_parse.py --scenario strict-sql
+uv run python benchmarks/bench_parse.py --scenario strict-postgres
+uv run python benchmarks/bench_parse.py --scenario sqlite-statement
+uv run python benchmarks/bench_parse.py --scenario postgres-statement
 uv run python benchmarks/bench_parse.py --scenario loose-mongo
 uv run python benchmarks/bench_parse.py --scenario invalid-strict
 uv run python benchmarks/bench_parse.py --scenario emit-mongo
@@ -73,7 +76,10 @@ Common sort modes are:
 | Scenario | Measures |
 | --- | --- |
 | `strict-mongo` | Strict contract parse plus Mongo emission. |
-| `strict-sql` | Strict contract parse plus SQL emission. |
+| `strict-sql` | Strict contract parse plus SQLite-style SQL emission. |
+| `strict-postgres` | Strict contract parse plus PostgreSQL-style SQL emission. |
+| `sqlite-statement` | Strict parse plus SQLite `SELECT` statement composition. |
+| `postgres-statement` | Strict parse plus PostgreSQL `SELECT` statement composition. |
 | `loose-mongo` | Loose-mode parse plus Mongo emission. |
 | `invalid-strict` | Strict-mode validation error path. |
 | `emit-mongo` | Mongo emission from a prebuilt AST. |

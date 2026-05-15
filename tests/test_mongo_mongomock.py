@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from datetime import datetime
-from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
 import pytest
+
+pytestmark = [pytest.mark.integration, pytest.mark.mongo]
 
 if TYPE_CHECKING:
     from conftest import ItemQueryFactory
@@ -14,7 +15,7 @@ if TYPE_CHECKING:
 @pytest.fixture
 def mongo_items_collection() -> Any:
     # Arrange
-    mongomock: Any = import_module("mongomock")
+    mongomock: Any = pytest.importorskip("mongomock")
     client: Any = mongomock.MongoClient()
     collection = client["paramora_test"]["items"]
     collection.insert_many(
