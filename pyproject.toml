@@ -264,7 +264,9 @@ exclude = [
     ".venv",
     "dist",
     "build",
-    "examples"
+    "examples",
+    "benchmarks",
+    "tests"
 ]
 pythonVersion = "3.10"
 pythonPlatform = "All"
