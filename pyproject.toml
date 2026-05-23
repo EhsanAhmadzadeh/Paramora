@@ -183,6 +183,7 @@ exclude_also = [
 target-version = "py310"
 line-length = 88
 src = ["paramora", "tests", "benchmarks"]
+exclude=["examples","tests","benchmarks"]
 
 [tool.ruff.lint]
 select = [
@@ -263,6 +264,7 @@ exclude = [
     ".venv",
     "dist",
     "build",
+    "examples"
 ]
 pythonVersion = "3.10"
 pythonPlatform = "All"
