@@ -4,38 +4,22 @@ Paramora query contracts use regular Python annotations for value types and
 ``typing.Annotated`` metadata for Paramora-specific query behavior. This keeps
 contracts friendly to static type checkers while still letting Paramora declare
 allowed operators, sortability, backend aliases, and required filters.
-
-Example:
-    from typing import Annotated
-
-    class ItemQuery(QueryContract):
-        status: Annotated[str, query_field("eq", "in")]
-        active: bool
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, TypeIs
+from typing import TYPE_CHECKING, TypeAlias
 
 if TYPE_CHECKING:
     from .query_ast import FilterOperator
 
-type FieldType = type | str
+FieldType: TypeAlias = type | str
 
 DEFAULT_OPERATORS: frozenset[FilterOperator] = frozenset({"eq"})
 KNOWN_OPERATORS: frozenset[FilterOperator] = frozenset(
     {"eq", "ne", "gt", "gte", "lt", "lte", "in", "nin"}
 )
-
-
-def is_known_operator(value: str) -> TypeIs[FilterOperator]:
-    """Return whether ``value`` is a supported Paramora filter operator.
-
-    The ``TypeIs`` return type lets Pyright and other type checkers narrow a
-    raw query-string suffix to ``FilterOperator`` after validation.
-    """
-    return value in KNOWN_OPERATORS
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,14 +58,7 @@ class QueryField:
     required: bool = False
 
     def backend_name(self, public_name: str) -> str:
-        """Return the backend field name for a public field name.
-
-        Args:
-            public_name: Public contract field name.
-
-        Returns:
-            The configured backend alias, otherwise ``public_name``.
-        """
+        """Return the backend field name for a public field name."""
         return self.alias or public_name
 
 
@@ -93,11 +70,7 @@ def query_field(
 ) -> QueryFieldInfo:
     """Declare Paramora metadata for an annotated contract field.
 
-    The Python type comes from the annotation, not from this function. Use this
-    helper inside ``typing.Annotated`` so type checkers still see the field as
-    its real Python type.
-
-    Passing operators as positional string literals gives editors much better
+    Passing operators as positional string literals gives editors better
     autocomplete than a nested ``allow=(...)`` sequence.
 
     Args:
@@ -128,15 +101,7 @@ def query_field(
 def resolve_query_field(
     type_: FieldType, info: QueryFieldInfo | None = None
 ) -> QueryField:
-    """Resolve an annotation and optional metadata into a concrete field.
-
-    Args:
-        type_: Python type, enum type, or supported string type name.
-        info: Optional Paramora field metadata.
-
-    Returns:
-        A concrete query field declaration.
-    """
+    """Resolve an annotation and optional metadata into a concrete field."""
     metadata = info or QueryFieldInfo()
     return QueryField(
         type_=type_,

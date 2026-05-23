@@ -14,6 +14,14 @@ uv sync --group dev
 uv run pytest -vv
 ```
 
+Optional backend integration dependencies are not required for normal
+development. To run the full integration suite, install the integration group:
+
+```bash
+uv sync --group dev --group integration
+uv run pytest -vv
+```
+
 ## Run the quality gate
 
 ```bash

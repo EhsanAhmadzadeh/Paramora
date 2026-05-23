@@ -1,16 +1,55 @@
 from __future__ import annotations
 
 from datetime import datetime  # noqa: TC003
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, Any, TypeVar, overload
 
 import pytest
 
-from paramora import Query, QueryContract, query_field
+from paramora import MongoQuery, Query, QueryContract, query_field
+from paramora.emitters.mongo import MongoEmitter
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
+    from paramora.emitters.base import QueryEmitter
     from paramora.query_modes import QueryMode
+
+QueryOutputT = TypeVar("QueryOutputT")
+
+
+class ItemQueryFactory:
+    """Typed factory fixture for item query dependencies."""
+
+    @overload
+    def __call__(
+        self,
+        *,
+        mode: QueryMode | None = None,
+        emitter: None = None,
+    ) -> Query[MongoQuery]: ...
+
+    @overload
+    def __call__(
+        self,
+        *,
+        mode: QueryMode | None = None,
+        emitter: QueryEmitter[QueryOutputT],
+    ) -> Query[QueryOutputT]: ...
+
+    def __call__(
+        self,
+        *,
+        mode: QueryMode | None = None,
+        emitter: QueryEmitter[Any] | None = None,
+    ) -> Query[Any]:
+        selected_emitter: QueryEmitter[Any] = (
+            MongoEmitter() if emitter is None else emitter
+        )
+        return Query(
+            ItemQueryContract,
+            default_limit=20,
+            max_limit=100,
+            mode=mode,
+            emitter=selected_emitter,
+        )
 
 
 class ItemQueryContract(QueryContract):
@@ -32,15 +71,6 @@ def item_contract() -> type[ItemQueryContract]:
 
 
 @pytest.fixture
-def make_item_query() -> Callable[..., Query]:
-    """Return a factory for the canonical item query dependency used by tests."""
-
-    def _make_item_query(*, mode: QueryMode | None = None) -> Query:
-        return Query(
-            ItemQueryContract,
-            default_limit=20,
-            max_limit=100,
-            mode=mode,
-        )
-
-    return _make_item_query
+def make_item_query() -> ItemQueryFactory:
+    """Return a typed factory for the canonical item query dependency."""
+    return ItemQueryFactory()

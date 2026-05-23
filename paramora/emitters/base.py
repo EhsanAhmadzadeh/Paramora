@@ -1,34 +1,34 @@
-"""Generic backend emitter protocol for Paramora.
+"""Backend emitter protocol for Paramora.
 
 Emitters compile the backend-neutral ``QueryAst`` into a backend-specific query
-object. The generic protocol lets ``CompiledQuery.to(...)`` preserve the return
-type of the selected backend emitter without tying core query parsing to MongoDB.
+object. They consume the precompiled contract metadata so request-time emission
+can use aliases and backend names without repeating contract introspection.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Protocol, TypeVar
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
-
-    from paramora.fields import QueryField
+    from paramora.compiled import CompiledContract
     from paramora.query_ast import QueryAst
 
+QueryOutputT_co = TypeVar("QueryOutputT_co", covariant=True)
 
-class QueryEmitter[QueryOutputT_co](Protocol):
+
+class QueryEmitter(Protocol[QueryOutputT_co]):
     """Protocol implemented by backend emitters.
 
     Type Parameters:
         QueryOutputT_co: Backend-specific query object returned by the emitter.
     """
 
-    def emit(self, ast: QueryAst, fields: Mapping[str, QueryField]) -> QueryOutputT_co:
+    def emit(self, ast: QueryAst, contract: CompiledContract) -> QueryOutputT_co:
         """Compile an AST into a backend-specific query object.
 
         Args:
             ast: Backend-neutral query AST.
-            fields: Field declarations by public name.
+            contract: Precompiled query contract metadata.
 
         Returns:
             Backend-specific query object.

@@ -1,14 +1,43 @@
 # Paramora documentation
 
-This directory contains the user and contributor documentation for Paramora.
-The README is the package landing page; these files provide the more detailed
-material that developers need when adopting or contributing to the project.
+This directory contains the source documentation for Paramora.
 
-- [Quickstart](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/quickstart.md)
-- [Query contracts](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/contracts.md)
-- [Query syntax](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/query-syntax.md)
-- [Error handling](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/errors.md)
-- [MongoDB backend](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/mongodb.md)
-- [Development with uv](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/development.md)
-- [Testing strategy](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/testing.md)
-- [Profiling and future Rust hotspots](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/profiling-and-rust.md)
+Paramora is a FastAPI-native typed query compiler. It validates HTTP query
+parameters, coerces values into Python types, builds a backend-neutral AST, and
+emits backend-specific output such as MongoDB query objects or parameterized SQL
+fragments.
+
+## Start here
+
+- [Usage guide](usage.md) — full practical guide with MongoDB, SQL, strict mode,
+  loose mode, aliases, required fields, sorting, pagination, and errors.
+- [How-to guides](how-to.md) — scenario-based recipes for common application needs.
+- [Quickstart](quickstart.md) — smallest useful FastAPI examples.
+- [Query contracts](contracts.md) — how to define typed query contracts.
+- [Query syntax](query-syntax.md) — supported HTTP query parameters and operators.
+
+## Backend guides
+
+- [MongoDB backend](mongodb.md) — using `MongoQuery` with PyMongo-style
+  collections.
+- [SQL backend](sql.md) — using `SqliteEmitter`, `PostgresEmitter`, and `SqlQuery` with raw SQL
+  drivers such as SQLite.
+
+## Reliability and maintenance
+
+- [Error handling](errors.md) — structured errors and FastAPI 422 payloads.
+- [Testing strategy](testing.md) — unit, FastAPI, MongoDB, SQLite, typing, and
+  benchmark coverage.
+- [Benchmarking guide](benchmarking.md) — timing benchmarks, suite runs, and regression comparison.
+- [Benchmarking, profiling, and future Rust hotspots](profiling-and-rust.md) —
+  how to measure parser/emitter performance.
+- [Development with uv](development.md) — local setup and quality gates.
+- [Python support policy](python-support.md) — supported Python versions.
+- [Changelog](../CHANGELOG.md) — release notes and notable changes.
+
+## How the docs are organized
+
+The README is intentionally short enough for GitHub and PyPI readers. The `docs/`
+files are more detailed and should be updated whenever public behavior changes.
+Runtime wheels do not need to install this directory; it is source documentation
+for users and contributors.

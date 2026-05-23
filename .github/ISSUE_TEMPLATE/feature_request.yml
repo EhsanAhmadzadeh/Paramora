@@ -25,8 +25,6 @@ body:
     attributes:
       label: Problem
       description: What problem does this solve?
-      placeholder: |
-        I want to allow users to filter by case-insensitive text without exposing raw Mongo operators.
     validations:
       required: true
 
@@ -36,9 +34,6 @@ body:
       label: Proposed solution
       description: Describe the API or behavior you want.
       render: python
-      placeholder: |
-        class ItemQuery(QueryContract):
-            name: Annotated[str, query_field("icontains")]
     validations:
       required: true
 
@@ -61,32 +56,3 @@ body:
         - Other
     validations:
       required: true
-
-  - type: textarea
-    id: alternatives
-    attributes:
-      label: Alternatives considered
-      description: What other designs or workarounds did you consider?
-      placeholder: |
-        I considered using loose mode, but that does not provide strict operator validation.
-    validations:
-      required: false
-
-  - type: textarea
-    id: compatibility
-    attributes:
-      label: Compatibility impact
-      description: Would this affect public APIs, error shapes, AST contracts, or backend emitter behavior?
-      placeholder: |
-        This would add a new operator but should not break existing behavior.
-    validations:
-      required: false
-
-  - type: textarea
-    id: examples
-    attributes:
-      label: Usage examples
-      description: Show how developers would use this feature.
-      render: python
-    validations:
-      required: false

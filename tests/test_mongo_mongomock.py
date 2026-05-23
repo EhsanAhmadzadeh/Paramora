@@ -1,24 +1,22 @@
 from __future__ import annotations
 
 from datetime import datetime
-from importlib import import_module
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
+pytestmark = [pytest.mark.integration, pytest.mark.mongo]
+
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
-    from paramora import Query
+    from conftest import ItemQueryFactory
     from paramora.emitters.mongo import MongoQuery
-
-mongomock = cast("Any", import_module("mongomock"))
 
 
 @pytest.fixture
 def mongo_items_collection() -> Any:
     # Arrange
-    client = mongomock.MongoClient()
+    mongomock: Any = pytest.importorskip("mongomock")
+    client: Any = mongomock.MongoClient()
     collection = client["paramora_test"]["items"]
     collection.insert_many(
         [
@@ -64,13 +62,13 @@ def run_mongo_query(collection: Any, mongo: MongoQuery) -> list[dict[str, Any]]:
 
 
 def test_compiled_equality_filter_returns_matching_documents_from_mongomock(
-    make_item_query: Callable[..., Query], mongo_items_collection: Any
+    make_item_query: ItemQueryFactory, mongo_items_collection: Any
 ) -> None:
     # Arrange
     query = make_item_query()
 
     # Act
-    mongo = query.parse({"status": "free"}).to_mongo()
+    mongo = query.parse({"status": "free"}).output
     docs = run_mongo_query(mongo_items_collection, mongo)
 
     # Assert
@@ -78,13 +76,13 @@ def test_compiled_equality_filter_returns_matching_documents_from_mongomock(
 
 
 def test_compiled_in_filter_returns_matching_documents_from_mongomock(
-    make_item_query: Callable[..., Query], mongo_items_collection: Any
+    make_item_query: ItemQueryFactory, mongo_items_collection: Any
 ) -> None:
     # Arrange
     query = make_item_query()
 
     # Act
-    mongo = query.parse({"status__in": "free,busy"}).to_mongo()
+    mongo = query.parse({"status__in": "free,busy"}).output
     docs = run_mongo_query(mongo_items_collection, mongo)
 
     # Assert
@@ -92,13 +90,13 @@ def test_compiled_in_filter_returns_matching_documents_from_mongomock(
 
 
 def test_compiled_nin_filter_excludes_matching_documents_in_mongomock(
-    make_item_query: Callable[..., Query], mongo_items_collection: Any
+    make_item_query: ItemQueryFactory, mongo_items_collection: Any
 ) -> None:
     # Arrange
     query = make_item_query()
 
     # Act
-    mongo = query.parse({"status__nin": "archived"}).to_mongo()
+    mongo = query.parse({"status__nin": "archived"}).output
     docs = run_mongo_query(mongo_items_collection, mongo)
 
     # Assert
@@ -106,13 +104,13 @@ def test_compiled_nin_filter_excludes_matching_documents_in_mongomock(
 
 
 def test_compiled_boolean_filter_uses_coerced_boolean_in_mongomock(
-    make_item_query: Callable[..., Query], mongo_items_collection: Any
+    make_item_query: ItemQueryFactory, mongo_items_collection: Any
 ) -> None:
     # Arrange
     query = make_item_query()
 
     # Act
-    mongo = query.parse({"active": "false"}).to_mongo()
+    mongo = query.parse({"active": "false"}).output
     docs = run_mongo_query(mongo_items_collection, mongo)
 
     # Assert
@@ -120,13 +118,13 @@ def test_compiled_boolean_filter_uses_coerced_boolean_in_mongomock(
 
 
 def test_compiled_numeric_range_filter_returns_matching_documents_from_mongomock(
-    make_item_query: Callable[..., Query], mongo_items_collection: Any
+    make_item_query: ItemQueryFactory, mongo_items_collection: Any
 ) -> None:
     # Arrange
     query = make_item_query()
 
     # Act
-    mongo = query.parse({"price__gte": "20", "price__lt": "40"}).to_mongo()
+    mongo = query.parse({"price__gte": "20", "price__lt": "40"}).output
     docs = run_mongo_query(mongo_items_collection, mongo)
 
     # Assert
@@ -134,7 +132,7 @@ def test_compiled_numeric_range_filter_returns_matching_documents_from_mongomock
 
 
 def test_compiled_datetime_range_filter_returns_matching_documents_from_mongomock(
-    make_item_query: Callable[..., Query], mongo_items_collection: Any
+    make_item_query: ItemQueryFactory, mongo_items_collection: Any
 ) -> None:
     # Arrange
     query = make_item_query()
@@ -144,7 +142,7 @@ def test_compiled_datetime_range_filter_returns_matching_documents_from_mongomoc
     }
 
     # Act
-    mongo = query.parse(params).to_mongo()
+    mongo = query.parse(params).output
     docs = run_mongo_query(mongo_items_collection, mongo)
 
     # Assert
@@ -152,15 +150,13 @@ def test_compiled_datetime_range_filter_returns_matching_documents_from_mongomoc
 
 
 def test_compiled_sort_limit_and_offset_are_applied_by_mongomock(
-    make_item_query: Callable[..., Query], mongo_items_collection: Any
+    make_item_query: ItemQueryFactory, mongo_items_collection: Any
 ) -> None:
     # Arrange
     query = make_item_query()
 
     # Act
-    mongo = query.parse(
-        {"sort": "-created_at", "limit": "2", "offset": "1"}
-    ).to_mongo()
+    mongo = query.parse({"sort": "-created_at", "limit": "2", "offset": "1"}).output
     docs = run_mongo_query(mongo_items_collection, mongo)
 
     # Assert
@@ -168,7 +164,7 @@ def test_compiled_sort_limit_and_offset_are_applied_by_mongomock(
 
 
 def test_compiled_combined_filters_sort_and_pagination_work_together_in_mongomock(
-    make_item_query: Callable[..., Query], mongo_items_collection: Any
+    make_item_query: ItemQueryFactory, mongo_items_collection: Any
 ) -> None:
     # Arrange
     query = make_item_query()
@@ -180,7 +176,7 @@ def test_compiled_combined_filters_sort_and_pagination_work_together_in_mongomoc
     }
 
     # Act
-    mongo = query.parse(params).to_mongo()
+    mongo = query.parse(params).output
     docs = run_mongo_query(mongo_items_collection, mongo)
 
     # Assert
