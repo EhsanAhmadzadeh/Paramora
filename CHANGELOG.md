@@ -6,31 +6,40 @@ Paramora follows semantic-versioning-style release notes while it is in alpha.
 Until `1.0`, public APIs, error shapes, AST contracts, and emitter interfaces may
 still change between minor releases. Breaking changes are called out explicitly.
 
+## [Unreleased]
+
+### Added
+
+- Local helper scripts for formatting, testing, documentation, benchmarking, and
+  the full quality gate.
+- GitHub Actions CI matrix for every supported Python version.
+- Codecov coverage upload and dynamic README coverage badge.
+- MkDocs Material documentation site for GitHub Pages.
+
+### Changed
+
+- README now uses a logo header, dynamic status badges, and clearer open-source
+  project positioning.
+- Development documentation now explains local scripts and the CI-equivalent
+  quality gate.
+
 ## [0.4.0] - 2026-05-24
 
 ### Added
 
-- Added GitHub Pages documentation setup with MkDocs Material.
-- Added centered Paramora logo and project badges to the README.
-- Added CI workflow for Python 3.10 through 3.14.
-- Added documentation deployment workflow for GitHub Pages.
-- Added full backend test dependency coverage to the `test`, `dev`, and
-  `integration` dependency groups.
-- Added SQLModel-specific integration coverage that runs when SQLModel is
-  installed.
-
-### Fixed
-
-- Fixed SQLAlchemy/SQLModel test contracts that referenced `datetime` only under
-  `TYPE_CHECKING`, which caused runtime `get_type_hints(...)` resolution errors.
+- SQLAlchemy and SQLModel emitter support through optional expression emitters.
+- Mongo ODM adapter helpers for Beanie/MongoEngine-style sorting.
+- Tests and docs for SQLAlchemy, SQLModel, and Mongo ODM adapter usage.
+- GitHub Pages documentation setup.
+- Full backend development dependencies for local testing.
 
 ### Changed
 
-- Updated documentation links to point to the GitHub Pages documentation site.
-- Clarified that the normal development environment installs optional backend
-  dependencies so the backend suite can run consistently.
+- Kept Python support policy at Python 3.10+.
+- Improved README positioning and backend documentation.
+- Improved testing coverage for optional backend emitters.
 
-## [0.3.0] - Unreleased
+## [0.3.0]
 
 ### Added
 
@@ -43,12 +52,9 @@ still change between minor releases. Breaking changes are called out explicitly.
   - `format` for psycopg-style `%s` placeholders.
   - `numeric` for `:1`, `:2`, ... placeholders.
   - `dollar` for PostgreSQL-style `$1`, `$2`, ... placeholders.
-- SQLAlchemy and SQLModel emitter support through optional expression emitters.
-- Mongo ODM adapter helpers for Beanie/MongoEngine-style sorting.
 - SQLite integration tests using the standard-library `sqlite3` module.
 - PostgreSQL SQL-shape tests and an optional real PostgreSQL integration test
   controlled by `PARAMORA_POSTGRES_DSN`.
-- Tests and docs for SQLAlchemy, SQLModel, and Mongo ODM adapter usage.
 - Benchmark scenarios for MongoDB, SQL, loose mode, invalid validation paths,
   and emitter-only paths.
 - Benchmark suite runner for comparing all supported scenarios.
@@ -80,7 +86,7 @@ still change between minor releases. Breaking changes are called out explicitly.
 - Kept MongoDB behavior covered by `mongomock` integration tests.
 - Maintained strict type checking across package code, tests, and benchmarks.
 
-## [0.2.0] - Previous alpha
+## [0.2.0]
 
 ### Added
 
@@ -96,7 +102,7 @@ still change between minor releases. Breaking changes are called out explicitly.
   query contracts.
 - Reworked backend output access around typed compiled queries.
 
-## [0.1.0] - Initial alpha
+## [0.1.0]
 
 ### Added
 

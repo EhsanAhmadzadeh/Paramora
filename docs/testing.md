@@ -1,74 +1,56 @@
 # Testing strategy
 
-Paramora aims to be reliable enough for production FastAPI APIs, so tests cover
-behavior at several layers. The suite is written with pytest and follows the AAA
-pattern: Arrange, Act, Assert.
+Paramora aims to be reliable enough for public FastAPI APIs, so tests cover more
+than dictionary-shape assertions.
 
 ## Test layers
 
-| Layer | Purpose |
-| --- | --- |
-| Contract tests | Validate `QueryContract`, `Annotated`, and `query_field(...)` behavior |
-| Coercion tests | Validate scalar, enum, boolean, datetime, and list coercion |
-| Parser tests | Validate strict mode, loose mode, operators, sorting, pagination, and errors |
-| FastAPI tests | Validate dependency behavior and HTTP 422 responses |
-| Mongo tests | Execute emitted Mongo queries against `mongomock` |
-| Raw SQL tests | Execute emitted SQL against in-memory SQLite |
-| PostgreSQL SQL-shape tests | Validate PostgreSQL placeholder styles and injection safety |
-| SQLAlchemy tests | Validate table, model, and mapping column resolution |
-| SQLModel tests | Validate SQLModel class integration with SQLAlchemy-compatible emitters |
-| ODM tests | Validate Beanie/MongoEngine-friendly output helpers |
+- **Unit tests** validate parsing, coercion, contracts, errors, and emitters.
+- **FastAPI integration tests** verify dependency behavior and `422` responses.
+- **Mongo integration tests** execute generated Mongo queries against
+  `mongomock`.
+- **SQLite integration tests** execute generated SQL with the standard-library
+  `sqlite3` module.
+- **PostgreSQL tests** validate PostgreSQL-compatible SQL output and optionally
+  execute against a real PostgreSQL database.
+- **SQLAlchemy / SQLModel tests** verify expression emission and statement
+  application.
+- **ODM tests** verify adapter helper output for common ODM usage patterns.
 
-## Run the full normal suite
+## Run all tests
 
 ```bash
-uv sync --group dev
+uv sync --group dev --group docs
 uv run pytest -vv
 ```
 
-The `dev` dependency group installs the optional backend libraries needed for the
-normal backend suite, including `mongomock`, `sqlalchemy`, `sqlmodel`, `beanie`,
-and `mongoengine`.
-
-## PostgreSQL integration tests
-
-PostgreSQL execution tests require a real database. They are skipped unless
-`PARAMORA_POSTGRES_DSN` is set.
+or through the helper script:
 
 ```bash
-PARAMORA_POSTGRES_DSN="postgresql://user:pass@localhost:5432/paramora_test" \
-  uv run pytest -vv -m postgres
+scripts/test.sh
 ```
 
-## Marker examples
+## Test style
 
-Run only MongoDB-compatible tests:
+Tests should follow the AAA pattern:
 
-```bash
-uv run pytest -vv -m mongo
+```python
+def test_example_behavior() -> None:
+    # Arrange
+    query = Query(ItemQuery)
+
+    # Act
+    compiled = query.parse({"price__gte": "10"})
+
+    # Assert
+    assert compiled.output.filter == {"price": {"$gte": 10.0}}
 ```
 
-Run only SQL tests:
-
-```bash
-uv run pytest -vv -m sql
-```
-
-Run SQLAlchemy and SQLModel tests:
-
-```bash
-uv run pytest -vv -m sqlalchemy
-```
-
-## Type safety in tests
-
-Paramora keeps tests under Pyright strict mode. Tests should avoid leaking
-`Unknown` types from optional third-party libraries into assertions. Use small
-local protocols, typed helper functions, or `Any` only at the boundary where a
-third-party dynamic object is intentionally imported.
+Keep tests focused on one behavior, use parametrization for repeated cases, and
+prefer integration tests when an emitter claims compatibility with a backend.
 
 ## Coverage
 
-Coverage is a signal, not the goal. Paramora requires meaningful behavioral
-coverage around safety-critical paths: validation, query syntax, emitter output,
-and backend execution behavior.
+Coverage is enforced by pytest configuration and uploaded to Codecov from CI.
+The README coverage badge is dynamic and reflects the latest coverage uploaded
+for the `main` branch.

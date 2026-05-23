@@ -1,13 +1,11 @@
 # Continuous Integration
 
-Paramora treats the CI pipeline as part of the public quality contract. The goal
-is that contributors can trust the package across supported Python versions,
-backend emitters, type checking, documentation, and benchmark-oriented changes.
+Paramora uses CI as a release gate. The goal is simple: a contributor should be
+able to run the same checks locally that GitHub runs before a change is merged.
 
 ## Supported Python versions
 
-Paramora supports Python **3.10 and newer**. The CI test matrix runs the test
-suite on:
+Paramora supports Python **3.10+**. CI runs the test suite on:
 
 - Python 3.10
 - Python 3.11
@@ -15,52 +13,35 @@ suite on:
 - Python 3.13
 - Python 3.14
 
-Python 3.10 is the compatibility baseline. Runtime code should not use syntax or
-standard-library features that are unavailable on Python 3.10.
+The quality job runs on Python 3.10 because it is the compatibility baseline.
+That job checks formatting, linting, strict typing, and documentation builds.
 
-## Quality gates
+## Local quality gate
 
-The `quality` job runs once on Python 3.10 and checks:
+Run the full local gate with:
+
+```bash
+scripts/check.sh
+```
+
+That command runs:
 
 ```bash
 uv run ruff format --check .
 uv run ruff check .
 uv run pyright
+uv run pytest -vv
 uv run mkdocs build --strict
 ```
 
-Keeping these checks in one job makes style, typing, and documentation failures
-fast to diagnose.
-
-## Test matrix
-
-The `tests` job runs after the quality gate and executes:
-
-```bash
-uv run pytest -vv --cov-report=term-missing --cov-report=xml
-```
-
-The test environment installs the development dependency group, which includes
-backend testing dependencies such as `mongomock`, `sqlalchemy`, `sqlmodel`,
-`psycopg`, `beanie`, and `mongoengine`.
-
 ## Coverage
 
-Each Python version produces a `coverage.xml` artifact. CI uploads coverage to
-Codecov with a Python-version flag, for example `py3.10` or `py3.13`.
+CI writes a coverage XML report and uploads it to Codecov. The README coverage
+badge is generated from Codecov, so it tracks the latest uploaded coverage for
+`main` instead of a hard-coded percentage.
 
-The README coverage badge points to the Codecov report for the repository. After
-the first successful CI run on the default branch, the badge should begin showing
-real coverage data.
+## Documentation deployment
 
-## Optional integration tests
-
-Some integration tests require external services or environment variables. For
-example, the PostgreSQL execution test requires:
-
-```bash
-PARAMORA_POSTGRES_DSN=postgresql://user:password@localhost:5432/paramora
-```
-
-Tests that need unavailable services should skip with a clear reason rather than
-failing unrelated pull requests.
+Documentation is built with MkDocs Material and deployed with GitHub Pages from
+`.github/workflows/pages.yml`. The Pages workflow builds the `site/` directory
+and deploys that artifact. It does not deploy the repository README directly.

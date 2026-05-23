@@ -167,7 +167,14 @@ from datetime import datetime
 from typing import Annotated
 
 from fastapi import Depends, FastAPI
-from paramora import CompiledQuery, Query, QueryContract, SqlQuery, SqliteEmitter, query_field
+from paramora import (
+    CompiledQuery,
+    Query,
+    QueryContract,
+    SqlQuery,
+    SqliteEmitter,
+    query_field,
+)
 
 app = FastAPI()
 
@@ -265,13 +272,26 @@ Useful pages:
 
 ## Development
 
+Install the full development environment:
+
 ```bash
 uv sync --group dev --group docs
-uv run ruff format --check .
-uv run ruff check .
-uv run pyright
-uv run pytest -vv
-uv run mkdocs build --strict
+```
+
+Run the same local quality gate that CI expects:
+
+```bash
+scripts/check.sh
+```
+
+Individual helper scripts are also available:
+
+```bash
+scripts/format.sh       # Format and apply safe lint fixes
+scripts/test.sh         # Run pytest, forwarding any extra arguments
+scripts/docs.sh serve   # Serve the documentation site locally
+scripts/docs.sh build   # Build docs with MkDocs strict mode
+scripts/benchmark.sh    # Run benchmark scenarios
 ```
 
 The CI pipeline runs quality gates and the full test suite across every supported
@@ -279,7 +299,7 @@ Python version: **3.10, 3.11, 3.12, 3.13, and 3.14**. Coverage is generated on
 each Python version and uploaded to Codecov so regressions are visible from the
 README badge and pull requests.
 
-The development environment installs the optional backend test dependencies so
+The development environment installs optional backend test dependencies so
 SQLAlchemy, SQLModel, MongoDB-compatible `mongomock`, and ODM-related tests can
 run when possible.
 

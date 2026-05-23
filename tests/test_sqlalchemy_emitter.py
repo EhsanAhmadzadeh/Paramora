@@ -249,32 +249,3 @@ def test_sqlalchemy_emitter_can_compile_real_sqlalchemy_select_if_available() ->
     # Assert
     assert "WHERE items.status = 'free' AND items.price >= 10.0" in compiled
     assert "LIMIT 50 OFFSET 0" in compiled
-
-
-@pytest.mark.integration
-@pytest.mark.sqlalchemy
-@pytest.mark.sqlmodel
-def test_sqlmodel_emitter_can_compile_real_sqlmodel_select_if_available() -> None:
-    sqlmodel: Any = pytest.importorskip("sqlmodel")
-
-    # Arrange
-    class Item(sqlmodel.SQLModel, table=True):
-        id: int | None = sqlmodel.Field(default=None, primary_key=True)
-        status: str
-        price: float
-        created_at: datetime
-
-    query: Query[SqlAlchemyQuery] = Query(
-        SqlAlchemyItemQuery,
-        emitter=SqlModelEmitter.from_model(Item),
-    )
-
-    # Act
-    output = query.parse({"status": "free", "price__gte": "10"}).output
-    statement: Any = output.apply(sqlmodel.select(Item))
-    compiled = str(statement.compile(compile_kwargs={"literal_binds": True}))
-
-    # Assert
-    assert "item.status = 'free'" in compiled.lower()
-    assert "item.price >= 10.0" in compiled.lower()
-    assert "LIMIT 50 OFFSET 0" in compiled

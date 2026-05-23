@@ -1,6 +1,6 @@
 [project]
 name = "paramora"
-version = "0.3.0"
+version = "0.4.0"
 description = "Safe typed query compilation for FastAPI."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -46,24 +46,19 @@ test = [
     "mongomock>=4.3",
     "pytest>=9.0.3",
     "pytest-cov>=7.0",
-    "sqlalchemy>=2.0",
-    "sqlmodel>=0.0.22",
-    "psycopg>=3.2",
-    "beanie>=1.26",
-    "mongoengine>=0.29",
 ]
 dev = [
+    "beanie>=1.26",
     "httpx>=0.27",
     "mongomock>=4.3",
+    "mongoengine>=0.29",
+    "psycopg>=3.2",
     "pyright>=1.1.400",
     "pytest>=9.0.3",
     "pytest-cov>=7.0",
     "ruff>=0.14.0",
     "sqlalchemy>=2.0",
     "sqlmodel>=0.0.22",
-    "psycopg>=3.2",
-    "beanie>=1.26",
-    "mongoengine>=0.29",
 ]
 
 postgres = [
@@ -80,23 +75,19 @@ odm = [
     "mongoengine>=0.29",
 ]
 integration = [
+    "beanie>=1.26",
     "mongomock>=4.3",
+    "mongoengine>=0.29",
     "psycopg>=3.2",
     "sqlalchemy>=2.0",
     "sqlmodel>=0.0.22",
-    "beanie>=1.26",
-    "mongoengine>=0.29",
-]
-docs = [
-    "mkdocs>=1.6",
-    "mkdocs-material>=9.6",
 ]
 all = [
+    "beanie>=1.26",
+    "mongoengine>=0.29",
     "psycopg>=3.2",
     "sqlalchemy>=2.0",
     "sqlmodel>=0.0.22",
-    "beanie>=1.26",
-    "mongoengine>=0.29",
 ]
 
 [project.urls]
@@ -104,6 +95,7 @@ Homepage = "https://github.com/EhsanAhmadzadeh/Paramora"
 Repository = "https://github.com/EhsanAhmadzadeh/Paramora"
 Issues = "https://github.com/EhsanAhmadzadeh/Paramora/issues"
 Documentation = "https://ehsanahmadzadeh.github.io/Paramora/"
+Changelog = "https://github.com/EhsanAhmadzadeh/Paramora/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = ["hatchling"]
@@ -119,6 +111,8 @@ include = [
     "/benchmarks",
     "/docs",
     "/examples",
+    "/scripts",
+    "/mkdocs.yml",
     "/README.md",
     "/CHANGELOG.md",
     "/LICENSE",
@@ -126,8 +120,6 @@ include = [
     "/CODE_OF_CONDUCT.md",
     "/CONTRIBUTING.md",
     "/ARCHITECTURE.md",
-    "/mkdocs.yml",
-    "/.github/workflows",
     "/pyproject.toml",
     "/uv.lock",
 ]
@@ -161,7 +153,6 @@ markers = [
     "mongo: MongoDB-compatible integration tests",
     "sql: raw SQL backend integration tests",
     "sqlalchemy: optional SQLAlchemy/SQLModel integration tests",
-    "sqlmodel: optional SQLModel integration tests",
     "odm: optional ODM adapter tests",
     "postgres: optional PostgreSQL integration tests requiring PARAMORA_POSTGRES_DSN",
 ]
@@ -183,8 +174,11 @@ exclude_also = [
 target-version = "py310"
 line-length = 88
 src = ["paramora", "tests", "benchmarks"]
-exclude=["examples","tests","benchmarks"]
-
+exclude=[ 
+    "examples",
+    "benchmarks",
+    "tests"
+    ]
 [tool.ruff.lint]
 select = [
     "A",      # flake8-builtins
@@ -287,27 +281,27 @@ reportUnusedVariable = "warning"
 
 [dependency-groups]
 dev = [
+    "beanie>=1.26",
     "httpx>=0.27",
-    "mongomock>=4.3",
+    "mongomock>=4.3.0",
+    "mongoengine>=0.29",
+    "psycopg>=3.2",
     "pyright>=1.1.400",
     "pytest>=9.0.3",
     "pytest-cov>=7.0",
     "ruff>=0.14.0",
-    "sqlalchemy>=2.0",
+    "sqlalchemy>=2.0.49",
     "sqlmodel>=0.0.22",
-    "psycopg>=3.2",
-    "beanie>=1.26",
-    "mongoengine>=0.29",
-]
-integration = [
-    "mongomock>=4.3",
-    "psycopg>=3.2",
-    "sqlalchemy>=2.0",
-    "sqlmodel>=0.0.22",
-    "beanie>=1.26",
-    "mongoengine>=0.29",
 ]
 docs = [
     "mkdocs>=1.6",
     "mkdocs-material>=9.6",
+]
+integration = [
+    "beanie>=1.26",
+    "mongomock>=4.3",
+    "mongoengine>=0.29",
+    "psycopg>=3.2",
+    "sqlalchemy>=2.0",
+    "sqlmodel>=0.0.22",
 ]

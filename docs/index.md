@@ -1,72 +1,49 @@
+<div class="paramora-hero">
+  <img src="assets/paramora-logo.png" alt="Paramora logo">
+  <p><strong>Safe typed filtering for FastAPI.</strong></p>
+</div>
+
 # Paramora
 
-<p align="center">
-  <img src="assets/paramora-logo.png" alt="Paramora logo" width="320">
-</p>
+Paramora turns user-controlled HTTP query parameters into safe, typed backend
+query outputs for MongoDB, raw SQL, SQLAlchemy, SQLModel, and Mongo ODM
+adapters.
 
-<p align="center">
-  <strong>Safe typed filtering for FastAPI.</strong>
-</p>
+Use it when you want FastAPI filtering APIs that are explicit, validated,
+type-aware, documented, and safe by default.
 
-Paramora turns HTTP query parameters such as
-`?price__gte=10&status__in=free,busy&sort=-created_at` into typed backend
-outputs for MongoDB, raw SQL, SQLAlchemy, SQLModel, and Mongo ODM adapters.
-
-It is built for FastAPI applications that need filtering, sorting, pagination,
-validation, and backend query generation without exposing raw backend syntax to
-API clients.
-
-## Why use Paramora?
-
-Most filtering endpoints eventually repeat the same work:
-
-- parse query strings
-- validate allowed fields and operators
-- coerce strings into `bool`, `int`, `float`, `datetime`, or `Enum`
-- reject unsafe backend syntax
-- build MongoDB dictionaries, SQL fragments, or ORM expressions
-- keep error responses consistent
-
-Paramora makes that flow explicit and reusable.
-
-```python
-from datetime import datetime
-from typing import Annotated
-
-from paramora import Query, QueryContract, query_field
-
-
-class ItemQuery(QueryContract):
-    status: Annotated[str, query_field("eq", "in")]
-    active: bool
-    created_at: Annotated[datetime, query_field("gte", "lte", sortable=True)]
-    price: Annotated[float, query_field("eq", "gte", "lte")]
-
-
-item_query = Query(ItemQuery)
+```http
+/items?price__gte=10&status__in=free,busy&sort=-created_at&limit=20
 ```
 
-## Backends
+Paramora validates that request against your query contract, coerces values into
+Python types, builds a small backend-neutral AST, and emits the backend output
+you selected.
 
-Paramora currently supports:
+## Install
 
-| Backend | Output | Use case |
-| --- | --- | --- |
-| MongoDB | `MongoQuery` | PyMongo-style filtering, sorting, skip, limit |
-| Raw SQL | `SqlQuery` | SQLite and PostgreSQL-style parameterized SQL |
-| SQLAlchemy | `SqlAlchemyQuery` | SQLAlchemy Core and ORM expressions |
-| SQLModel | `SqlAlchemyQuery` | SQLModel statements built on SQLAlchemy |
-| Mongo ODM adapters | `MongoOdmQuery` | Beanie/MongoEngine-friendly helpers |
+```bash
+uv add paramora
+```
+
+Optional backend extras:
+
+```bash
+uv add "paramora[sqlalchemy]"
+uv add "paramora[sqlmodel]"
+uv add "paramora[postgres]"
+uv add "paramora[odm]"
+uv add "paramora[all]"
+```
 
 ## Start here
 
-- [Quickstart](quickstart.md)
-- [Usage guide](usage.md)
-- [How-to guides](how-to.md)
-- [Query contracts](contracts.md)
-- [Query syntax](query-syntax.md)
+- [Quickstart](quickstart.md): build your first FastAPI endpoint.
+- [Usage guide](usage.md): learn the common patterns.
+- [How-to guides](how-to.md): solve practical scenarios.
+- [Query syntax](query-syntax.md): supported operators, sorting, and pagination.
 
-## Backend guides
+## Backends
 
 - [MongoDB](mongodb.md)
 - [Raw SQL](sql.md)
@@ -75,16 +52,8 @@ Paramora currently supports:
 
 ## Reliability
 
-- [Error handling](errors.md)
-- [Testing strategy](testing.md)
-- [Continuous Integration](ci.md)
-- [Benchmarking](benchmarking.md)
-- [Profiling and future Rust hotspots](profiling-and-rust.md)
-- [Python support](python-support.md)
-- [Development with uv](development.md)
-- [Changelog](changelog.md)
+Paramora is tested with unit tests, FastAPI integration tests, SQLite execution
+tests, mongomock-backed MongoDB tests, and optional PostgreSQL / SQLAlchemy /
+SQLModel checks.
 
-## Project status
-
-Paramora is alpha software. Public APIs, backend emitter contracts, AST details,
-and error shapes may change before `1.0`.
+See [Testing](testing.md) and [Continuous Integration](ci.md).

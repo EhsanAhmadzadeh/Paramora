@@ -1,38 +1,36 @@
 site_name: Paramora
 site_description: Safe typed filtering for FastAPI, MongoDB, SQL, SQLAlchemy, SQLModel, and ODMs.
 site_url: https://ehsanahmadzadeh.github.io/Paramora/
-repo_url: https://github.com/EhsanAhmadzadeh/Paramora
 repo_name: EhsanAhmadzadeh/Paramora
+repo_url: https://github.com/EhsanAhmadzadeh/Paramora
 edit_uri: edit/main/docs/
-
+docs_dir: docs
+site_dir: site
 copyright: Copyright &copy; 2026 Ehsan Ahmadzadeh
 
 theme:
   name: material
   logo: assets/paramora-logo.png
   favicon: assets/paramora-logo.png
-  language: en
   features:
     - navigation.instant
     - navigation.tracking
     - navigation.sections
-    - navigation.indexes
+    - navigation.expand
     - navigation.top
     - search.suggest
     - search.highlight
     - content.code.copy
     - content.action.edit
   palette:
-    - media: "(prefers-color-scheme: light)"
-      scheme: default
-      primary: indigo
-      accent: blue
+    - scheme: default
+      primary: teal
+      accent: cyan
       toggle:
         icon: material/weather-night
         name: Switch to dark mode
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
-      primary: indigo
+    - scheme: slate
+      primary: teal
       accent: cyan
       toggle:
         icon: material/weather-sunny
@@ -45,15 +43,16 @@ markdown_extensions:
   - admonition
   - attr_list
   - md_in_html
-  - pymdownx.details
-  - pymdownx.superfences
-  - pymdownx.inlinehilite
-  - pymdownx.highlight:
-      anchor_linenums: true
-  - pymdownx.tabbed:
-      alternate_style: true
   - toc:
       permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
 
 nav:
   - Home: index.md
@@ -63,19 +62,17 @@ nav:
       - How-to guides: how-to.md
       - Query contracts: contracts.md
       - Query syntax: query-syntax.md
-      - Error handling: errors.md
+      - Errors: errors.md
   - Backends:
       - MongoDB: mongodb.md
       - Raw SQL: sql.md
       - SQLAlchemy and SQLModel: sqlalchemy.md
       - Mongo ODM adapters: odms.md
-  - Reliability:
-      - Testing strategy: testing.md
+  - Project:
+      - Testing: testing.md
       - Continuous Integration: ci.md
+      - Development: development.md
+      - Python support: python-support.md
       - Benchmarking: benchmarking.md
       - Profiling and Rust planning: profiling-and-rust.md
-      - Python support: python-support.md
-  - Project:
-      - Development with uv: development.md
       - Changelog: changelog.md
-
