@@ -190,6 +190,7 @@ class SqlModelEmitter(SqlAlchemyEmitter):
         """Create an emitter for a SQLModel model class."""
         return cls(AttributeColumnResolver(model))
 
+
 # TODO: Fix the PLR0911 error.
 def _filter_expression(  # noqa: PLR0911
     column: SqlAlchemyColumn, operator: str, value: object
@@ -220,7 +221,7 @@ def _terminal_name(field_name: str) -> str:
 
 def _as_tuple(value: object) -> tuple[object, ...]:
     if isinstance(value, tuple):
-        return value # type: ignore # TODO: Return type, "tuple[Unknown, ...]", is partially unknown
+        return value  # type: ignore # TODO: Return type, "tuple[Unknown, ...]", is partially unknown
     if isinstance(value, list):
-        return tuple(value) # type: ignore # TODO: Return type, "tuple[Unknown, ...]", is partially unknown
+        return tuple(value)  # type: ignore # TODO: Return type, "tuple[Unknown, ...]", is partially unknown
     return (value,)
