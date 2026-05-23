@@ -220,7 +220,7 @@ def _terminal_name(field_name: str) -> str:
 
 def _as_tuple(value: object) -> tuple[object, ...]:
     if isinstance(value, tuple):
-        return value
+        return value # type: ignore # TODO: Return type, "tuple[Unknown, ...]", is partially unknown
     if isinstance(value, list):
-        return tuple(value)
+        return tuple(value) # type: ignore # TODO: Return type, "tuple[Unknown, ...]", is partially unknown
     return (value,)
