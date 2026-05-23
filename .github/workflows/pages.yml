@@ -1,13 +1,15 @@
-name: Docs
+name: Deploy documentation
 
 on:
   push:
-    branches: [main, master]
+    branches: ["main"]
     paths:
       - "docs/**"
       - "mkdocs.yml"
       - ".github/workflows/pages.yml"
       - "README.md"
+      - "CHANGELOG.md"
+
   workflow_dispatch:
 
 permissions:
@@ -16,7 +18,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: "pages"
   cancel-in-progress: false
 
 jobs:
@@ -54,6 +56,7 @@ jobs:
     name: Deploy documentation
     needs: build
     runs-on: ubuntu-latest
+
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
