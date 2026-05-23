@@ -14,6 +14,9 @@ keywords = [
     "sql",
     "sqlite",
     "postgresql",
+    "sqlalchemy",
+    "sqlmodel",
+    "odm",
     "query-compiler",
     "validation",
     "typed",
@@ -43,6 +46,11 @@ test = [
     "mongomock>=4.3",
     "pytest>=9.0.3",
     "pytest-cov>=7.0",
+    "sqlalchemy>=2.0",
+    "sqlmodel>=0.0.22",
+    "psycopg>=3.2",
+    "beanie>=1.26",
+    "mongoengine>=0.29",
 ]
 dev = [
     "httpx>=0.27",
@@ -51,21 +59,51 @@ dev = [
     "pytest>=9.0.3",
     "pytest-cov>=7.0",
     "ruff>=0.14.0",
+    "sqlalchemy>=2.0",
+    "sqlmodel>=0.0.22",
+    "psycopg>=3.2",
+    "beanie>=1.26",
+    "mongoengine>=0.29",
 ]
 
 postgres = [
     "psycopg>=3.2",
 ]
+sqlalchemy = [
+    "sqlalchemy>=2.0",
+]
+sqlmodel = [
+    "sqlmodel>=0.0.22",
+]
+odm = [
+    "beanie>=1.26",
+    "mongoengine>=0.29",
+]
 integration = [
     "mongomock>=4.3",
     "psycopg>=3.2",
+    "sqlalchemy>=2.0",
+    "sqlmodel>=0.0.22",
+    "beanie>=1.26",
+    "mongoengine>=0.29",
+]
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.6",
+]
+all = [
+    "psycopg>=3.2",
+    "sqlalchemy>=2.0",
+    "sqlmodel>=0.0.22",
+    "beanie>=1.26",
+    "mongoengine>=0.29",
 ]
 
 [project.urls]
 Homepage = "https://github.com/EhsanAhmadzadeh/Paramora"
 Repository = "https://github.com/EhsanAhmadzadeh/Paramora"
 Issues = "https://github.com/EhsanAhmadzadeh/Paramora/issues"
-Documentation = "https://github.com/EhsanAhmadzadeh/Paramora/tree/main/docs"
+Documentation = "https://ehsanahmadzadeh.github.io/Paramora/"
 
 [build-system]
 requires = ["hatchling"]
@@ -80,6 +118,7 @@ include = [
     "/tests",
     "/benchmarks",
     "/docs",
+    "/examples",
     "/README.md",
     "/CHANGELOG.md",
     "/LICENSE",
@@ -87,6 +126,8 @@ include = [
     "/CODE_OF_CONDUCT.md",
     "/CONTRIBUTING.md",
     "/ARCHITECTURE.md",
+    "/mkdocs.yml",
+    "/.github/workflows",
     "/pyproject.toml",
     "/uv.lock",
 ]
@@ -119,6 +160,9 @@ markers = [
     "integration: integration tests that exercise a real or in-memory backend",
     "mongo: MongoDB-compatible integration tests",
     "sql: raw SQL backend integration tests",
+    "sqlalchemy: optional SQLAlchemy/SQLModel integration tests",
+    "sqlmodel: optional SQLModel integration tests",
+    "odm: optional ODM adapter tests",
     "postgres: optional PostgreSQL integration tests requiring PARAMORA_POSTGRES_DSN",
 ]
 
@@ -240,13 +284,26 @@ reportUnusedVariable = "warning"
 [dependency-groups]
 dev = [
     "httpx>=0.27",
-    "mongomock>=4.3.0",
+    "mongomock>=4.3",
     "pyright>=1.1.400",
     "pytest>=9.0.3",
     "pytest-cov>=7.0",
     "ruff>=0.14.0",
+    "sqlalchemy>=2.0",
+    "sqlmodel>=0.0.22",
+    "psycopg>=3.2",
+    "beanie>=1.26",
+    "mongoengine>=0.29",
 ]
 integration = [
     "mongomock>=4.3",
     "psycopg>=3.2",
+    "sqlalchemy>=2.0",
+    "sqlmodel>=0.0.22",
+    "beanie>=1.26",
+    "mongoengine>=0.29",
+]
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.6",
 ]

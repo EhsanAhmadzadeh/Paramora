@@ -45,3 +45,9 @@ pip-wheel-metadata/
 
 # uv lockfile is intentionally tracked for reproducible development.
 !uv.lock
+
+# Documentation build output
+site/
+
+# Local benchmark results
+benchmark-results/

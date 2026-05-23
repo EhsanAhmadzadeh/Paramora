@@ -1,12 +1,14 @@
 # Changelog
 
+This page mirrors the repository changelog for the documentation site.
+
 All notable changes to Paramora are documented here.
 
 Paramora follows semantic-versioning-style release notes while it is in alpha.
 Until `1.0`, public APIs, error shapes, AST contracts, and emitter interfaces may
 still change between minor releases. Breaking changes are called out explicitly.
 
-## [0.4.0] - 2026-05-24
+## [Unreleased]
 
 ### Added
 

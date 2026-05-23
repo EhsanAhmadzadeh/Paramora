@@ -1,53 +1,118 @@
-# Paramora
+<p align="center">
+  <a href="https://ehsanahmadzadeh.github.io/Paramora/">
+    <img src="https://raw.githubusercontent.com/EhsanAhmadzadeh/Paramora/main/docs/assets/paramora-logo.png" alt="Paramora" width="360">
+  </a>
+</p>
 
-Paramora is **safe typed query compilation for FastAPI**.
+<p align="center">
+  <em>Safe typed filtering for FastAPI, MongoDB, SQL, SQLAlchemy, SQLModel, and ODMs.</em>
+</p>
 
-It turns user-controlled HTTP query parameters into a small backend-neutral AST,
-then emits backend query objects such as MongoDB query dictionaries or
-parameterized SQL fragments.
+<p align="center">
+  <a href="https://github.com/EhsanAhmadzadeh/Paramora/actions/workflows/ci.yml">
+    <img src="https://github.com/EhsanAhmadzadeh/Paramora/actions/workflows/ci.yml/badge.svg" alt="CI">
+  </a>
+  <a href="https://github.com/EhsanAhmadzadeh/Paramora/actions/workflows/pages.yml">
+    <img src="https://github.com/EhsanAhmadzadeh/Paramora/actions/workflows/pages.yml/badge.svg" alt="Docs">
+  </a>
+  <a href="https://codecov.io/gh/EhsanAhmadzadeh/Paramora">
+    <img src="https://codecov.io/gh/EhsanAhmadzadeh/Paramora/branch/main/graph/badge.svg" alt="Coverage">
+  </a>
+  <a href="https://pypi.org/project/paramora/">
+    <img src="https://img.shields.io/pypi/v/paramora?color=%2334D058&label=pypi" alt="PyPI">
+  </a>
+  <a href="https://pypi.org/project/paramora/">
+    <img src="https://img.shields.io/pypi/pyversions/paramora.svg?color=%2334D058" alt="Python versions">
+  </a>
+  <a href="https://github.com/EhsanAhmadzadeh/Paramora/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/EhsanAhmadzadeh/Paramora" alt="License">
+  </a>
+  <a href="https://github.com/EhsanAhmadzadeh/Paramora">
+    <img src="https://img.shields.io/badge/typing-pyright%20strict-blue" alt="Pyright strict">
+  </a>
+</p>
 
-Paramora is designed for teams that want query filtering to be explicit,
-validated, typed, documented, and safe by default.
+---
 
-> Status: alpha. Public APIs, AST shapes, error codes, and emitter contracts may
-> change before `1.0`.
+**Paramora** turns user-controlled HTTP query parameters like:
+
+```http
+/items?price__gte=10&status__in=free,busy&sort=-created_at&limit=20
+```
+
+into safe, typed backend query outputs for MongoDB, raw SQL, SQLAlchemy,
+SQLModel, and Mongo ODM adapters.
+
+It helps FastAPI teams avoid hand-written filtering code, unsafe raw backend
+query exposure, inconsistent validation, and repeated pagination/sorting logic.
+
+> **Status:** Paramora is alpha software. Public APIs, backend emitter contracts,
+> AST details, and error shapes may change before `1.0`.
 
 ## Why Paramora?
 
-FastAPI makes request handling ergonomic, but filtering APIs often end up with
-one of two unsafe or messy patterns:
+FastAPI makes endpoint code ergonomic, but filtering APIs often grow into messy
+manual parsing:
 
-1. manually parsing query parameters in every route
-2. exposing backend-specific query syntax directly to clients
+```python
+price = request.query_params.get("price__gte")
+status = request.query_params.get("status__in")
 
-Paramora gives you a middle path:
+query = {}
+if price:
+    query["price"] = {"$gte": float(price)}
+if status:
+    query["status"] = {"$in": status.split(",")}
+```
 
-- clients send simple query parameters such as `price__gte=10`
-- your application declares which fields and operators are allowed
-- Paramora validates and coerces values into Python types
-- Paramora builds a backend-neutral AST
-- an emitter produces a backend-specific output, currently MongoDB or SQL
+Paramora lets you declare the query surface once:
 
-Request clients never need to know raw MongoDB operators or SQL fragments.
+```python
+from datetime import datetime
+from typing import Annotated
 
-## Installation
+from paramora import Query, QueryContract, query_field
 
-With uv:
+
+class ItemQuery(QueryContract):
+    status: Annotated[str, query_field("eq", "in")]
+    active: bool
+    created_at: Annotated[datetime, query_field("gte", "lte", sortable=True)]
+    price: Annotated[float, query_field("eq", "gte", "lte")]
+
+
+item_query = Query(ItemQuery)
+```
+
+Then Paramora handles:
+
+- allowed fields and operators
+- type coercion for `str`, `int`, `float`, `bool`, `datetime`, and `Enum`
+- strict vs loose validation
+- sorting and pagination
+- structured FastAPI `422` errors
+- MongoDB, raw SQL, SQLAlchemy, SQLModel, and ODM emitter outputs
+
+## Install
 
 ```bash
 uv add paramora
 ```
 
-With pip:
+or:
 
 ```bash
 pip install paramora
 ```
 
-For local development from the repository:
+Optional backend extras:
 
 ```bash
-uv sync --group dev
+uv add "paramora[sqlalchemy]"
+uv add "paramora[sqlmodel]"
+uv add "paramora[postgres]"
+uv add "paramora[odm]"
+uv add "paramora[all]"
 ```
 
 ## Requirements
@@ -55,31 +120,8 @@ uv sync --group dev
 Paramora supports **Python 3.10+** and FastAPI `0.115+`.
 
 Python 3.10 is the compatibility baseline. Runtime code intentionally avoids
-Python 3.11+/3.12+ only syntax so users on Python 3.10 and 3.11 can install the
-package. The minimum supported Python version may be raised in future releases
-after older versions reach end-of-life.
-
-## The core API
-
-Most applications use these objects:
-
-```python
-from paramora import CompiledQuery, Query, QueryContract, query_field
-```
-
-Backend-specific outputs:
-
-```python
-from paramora import MongoQuery, PostgresEmitter, SqlQuery, SqliteEmitter
-```
-
-The important rule is:
-
-- `Query()` has no contract and defaults to **loose mode**.
-- `Query(MyContract)` has a contract and defaults to **strict mode**.
-
-Strict mode is recommended for public APIs. Loose mode is useful for prototypes,
-trusted internal tools, and admin utilities.
+Python 3.11+/3.12+ only syntax so a wide range of FastAPI applications can adopt
+Paramora.
 
 ## MongoDB quickstart
 
@@ -96,10 +138,7 @@ app = FastAPI()
 class ItemQuery(QueryContract):
     status: Annotated[str, query_field("eq", "in")]
     active: bool
-    created_at: Annotated[
-        datetime,
-        query_field("gte", "lte", sortable=True),
-    ]
+    created_at: Annotated[datetime, query_field("gte", "lte", sortable=True)]
     price: Annotated[float, query_field("eq", "gt", "gte", "lt", "lte")]
 
 
@@ -121,41 +160,14 @@ def list_items(query: CompiledQuery[MongoQuery] = Depends(item_query)):
     return list(docs)
 ```
 
-Request:
-
-```http
-GET /items?status__in=free,busy&active=true&sort=-created_at&limit=20
-```
-
-Emitted output:
-
-```python
-MongoQuery(
-    filter={"status": {"$in": ["free", "busy"]}, "active": True},
-    sort=[("created_at", -1)],
-    limit=20,
-    offset=0,
-)
-```
-
-## SQL quickstart
-
-Paramora's SQL backend emits **parameterized raw SQL fragments**. The first
-supported raw-SQL targets are SQLite and PostgreSQL.
+## Raw SQL quickstart
 
 ```python
 from datetime import datetime
 from typing import Annotated
 
 from fastapi import Depends, FastAPI
-from paramora import (
-    CompiledQuery,
-    Query,
-    QueryContract,
-    SqlQuery,
-    SqliteEmitter,
-    query_field,
-)
+from paramora import CompiledQuery, Query, QueryContract, SqlQuery, SqliteEmitter, query_field
 
 app = FastAPI()
 
@@ -166,222 +178,123 @@ class ItemQuery(QueryContract):
     price: Annotated[float, query_field("eq", "gte", "lte")]
 
 
-item_query: Query[SqlQuery] = Query(
-    ItemQuery,
-    emitter=SqliteEmitter(),
-    default_limit=20,
-    max_limit=100,
-)
+item_query: Query[SqlQuery] = Query(ItemQuery, emitter=SqliteEmitter())
 
 
 @app.get("/items")
 def list_items(query: CompiledQuery[SqlQuery] = Depends(item_query)):
     sql = query.output
-    statement = sql.select_statement(
-        "items",
-        columns=("id", "status", "created_at", "price"),
-    )
-    rows = connection.execute(statement.sql, statement.params).fetchall()
+    statement = sql.select_statement("items", columns=("id", "status", "price"))
+    rows = connection.execute(statement.text, statement.params).fetchall()
     return [dict(row) for row in rows]
 ```
 
-Request:
+Values are always returned as bound parameters. Paramora does not interpolate
+user values into SQL strings.
 
-```http
-GET /items?status__in=free,busy&price__gte=10&sort=-created_at
-```
-
-Generated SQLite statement:
+## SQLAlchemy / SQLModel quickstart
 
 ```python
-SqlStatement(
-    sql='SELECT "id", "status", "created_at", "price" FROM "items" '
-        'WHERE "status" IN (?, ?) AND "price" >= ? '
-        'ORDER BY "created_at" DESC LIMIT ? OFFSET ?',
-    params=("free", "busy", 10.0, 20, 0),
+from datetime import datetime
+from typing import Annotated
+
+import sqlalchemy as sa
+from fastapi import Depends, FastAPI
+from paramora import CompiledQuery, Query, QueryContract, query_field
+from paramora.emitters.sqlalchemy import SqlAlchemyEmitter, SqlAlchemyQuery
+
+metadata = sa.MetaData()
+items = sa.Table(
+    "items",
+    metadata,
+    sa.Column("id", sa.Integer, primary_key=True),
+    sa.Column("status", sa.String),
+    sa.Column("price", sa.Float),
+    sa.Column("created_at", sa.DateTime),
 )
-```
 
-For PostgreSQL raw SQL, use `PostgresEmitter`:
 
-```python
-from paramora import PostgresEmitter, Query, SqlQuery
-
-item_query: Query[SqlQuery] = Query(ItemQuery, emitter=PostgresEmitter())
-```
-
-`PostgresEmitter()` emits `%s` placeholders by default for psycopg-style drivers.
-Use `PostgresEmitter(param_style="dollar")` when your driver expects `$1`, `$2`,
-... placeholders.
-
-Values are returned separately in `params`; they should be passed to your driver
-as bound parameters. Do not format user values into SQL strings.
-
-## Query contracts
-
-Bare annotations allow equality filtering:
-
-```python
 class ItemQuery(QueryContract):
-    active: bool
-```
+    status: Annotated[str, query_field("eq", "in")]
+    price: Annotated[float, query_field("gte", "lte")]
+    created_at: Annotated[datetime, query_field("gte", "lte", sortable=True)]
 
-This accepts:
 
-```http
-/items?active=true
-```
+item_query: Query[SqlAlchemyQuery] = Query(
+    ItemQuery,
+    emitter=SqlAlchemyEmitter.from_table(items),
+)
 
-Use `typing.Annotated` with `query_field(...)` for extra operators, sorting,
-backend aliases, or required filters:
+app = FastAPI()
 
-```python
-class ItemQuery(QueryContract):
-    tenant_id: Annotated[str, query_field(required=True)]
-    status: Annotated[str, query_field("eq", "in", "nin")]
-    created_at: Annotated[
-        datetime,
-        query_field("gte", "lte", sortable=True, alias="createdAt"),
-    ]
-```
 
-The positional operator API is deliberate. Editors such as Pylance can provide
-better autocomplete for `query_field("eq", "in")` than for nested tuple APIs.
-
-## Query syntax
-
-Paramora uses Django-style operator suffixes:
-
-| Query parameter | Meaning |
-| --- | --- |
-| `status=free` | `status == "free"` |
-| `status__in=free,busy` | `status in ["free", "busy"]` |
-| `price__gte=10` | `price >= 10` |
-| `price__lt=20` | `price < 20` |
-| `sort=created_at` | sort ascending |
-| `sort=-created_at` | sort descending |
-| `limit=20` | return at most 20 rows/documents |
-| `offset=40` | skip 40 rows/documents |
-
-Supported operators today:
-
-```text
-eq, ne, gt, gte, lt, lte, in, nin
+@app.get("/items")
+def list_items(query: CompiledQuery[SqlAlchemyQuery] = Depends(item_query)):
+    statement = query.output.apply(sa.select(items))
+    return {"sql": str(statement)}
 ```
 
 ## Strict mode and loose mode
 
-### Strict mode
+- `Query(MyContract)` enables **strict mode**. It rejects unknown fields,
+  unsupported operators, invalid values, unsafe sorting, and oversized limits.
+- `Query()` enables **loose mode**. It accepts unknown fields for trusted tools
+  and prototypes, while still rejecting raw backend operator injection and unsafe
+  SQL identifiers.
 
-`Query(MyContract)` validates requests against the declared contract:
-
-- unknown fields are rejected
-- unsupported operators are rejected
-- declared field types are used for coercion
-- sorting is allowed only on declared sortable fields
-- required filters are enforced
-- raw backend operator syntax is rejected
-
-Use strict mode for public endpoints.
-
-### Loose mode
-
-`Query()` has no contract. Unknown fields are allowed and values are kept as
-strings unless list syntax is used with `in` or `nin`.
-
-```python
-loose_query: Query[MongoQuery] = Query(default_limit=20, max_limit=100)
-
-
-@app.get("/admin/items")
-def list_items(query: CompiledQuery[MongoQuery] = Depends(loose_query)):
-    return list(collection.find(query.output.filter))
-```
-
-Loose mode still rejects raw backend operator syntax such as `$where`,
-`price[$gte]`, and `price__$gte`. It is less schema-strict, not raw database
-passthrough.
-
-## Error handling
-
-Invalid query parameters produce structured FastAPI-compatible errors:
-
-```json
-{
-  "detail": [
-    {
-      "loc": ["query", "price"],
-      "msg": "Expected a float-compatible value.",
-      "type": "query.type_error.float",
-      "input": "bad"
-    }
-  ]
-}
-```
-
-The same validation model is used by direct `Query.parse(...)` calls and FastAPI
-request dependencies.
+Use strict mode for public APIs.
 
 ## Documentation
 
-The README is the short introduction. Full documentation lives in `docs/`:
+The full documentation site is available at:
 
-- [Documentation index](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/README.md)
-- [Usage guide](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/usage.md)
-- [How-to guides](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/how-to.md)
-- [Quickstart](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/quickstart.md)
-- [Query contracts](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/contracts.md)
-- [Query syntax](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/query-syntax.md)
-- [MongoDB backend](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/mongodb.md)
-- [SQL backend](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/sql.md)
-- [Error handling](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/errors.md)
-- [Python support policy](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/python-support.md)
-- [Development with uv](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/development.md)
-- [Testing strategy](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/testing.md)
-- [Benchmarking guide](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/benchmarking.md)
-- [Profiling and future Rust hotspots](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/docs/profiling-and-rust.md)
-- [Changelog](https://github.com/EhsanAhmadzadeh/Paramora/blob/main/CHANGELOG.md)
+**https://ehsanahmadzadeh.github.io/Paramora/**
 
-Docs live on the main branch. Wheels include only the runtime `paramora` package;
-source distributions can include docs for maintainers and contributors.
+Useful pages:
 
-## Benchmarking
-
-Paramora includes lightweight benchmark scripts for parser and emitter work. Use
-them before and after performance-sensitive changes:
-
-```bash
-uv run python benchmarks/bench_all.py --json benchmark-results/before.json
-uv run python benchmarks/bench_all.py --json benchmark-results/after.json
-uv run python benchmarks/compare_results.py benchmark-results/before.json benchmark-results/after.json
-```
-
-Use cProfile when you need to find hotspots:
-
-```bash
-uv run python benchmarks/profile_parse.py --scenario strict-sql --iterations 500000 --limit 40
-```
+- [Quickstart](https://ehsanahmadzadeh.github.io/Paramora/quickstart/)
+- [Usage guide](https://ehsanahmadzadeh.github.io/Paramora/usage/)
+- [How-to guides](https://ehsanahmadzadeh.github.io/Paramora/how-to/)
+- [MongoDB backend](https://ehsanahmadzadeh.github.io/Paramora/mongodb/)
+- [Raw SQL backend](https://ehsanahmadzadeh.github.io/Paramora/sql/)
+- [SQLAlchemy and SQLModel](https://ehsanahmadzadeh.github.io/Paramora/sqlalchemy/)
+- [Mongo ODM adapters](https://ehsanahmadzadeh.github.io/Paramora/odms/)
+- [Testing strategy](https://ehsanahmadzadeh.github.io/Paramora/testing/)
+- [Continuous Integration](https://ehsanahmadzadeh.github.io/Paramora/ci/)
+- [Benchmarking](https://ehsanahmadzadeh.github.io/Paramora/benchmarking/)
 
 ## Development
 
-This repository is uv-first:
-
 ```bash
-uv sync --group dev
-uv run pytest -vv
+uv sync --group dev --group docs
 uv run ruff format --check .
 uv run ruff check .
 uv run pyright
-```
-
-Optional MongoDB/PostgreSQL integration dependencies live in the `integration`
-group:
-
-```bash
-uv sync --group dev --group integration
 uv run pytest -vv
+uv run mkdocs build --strict
 ```
 
-The test suite includes focused parser/coercion tests, FastAPI dependency tests,
-MongoDB-style tests with `mongomock`, SQLite integration tests, and optional
-PostgreSQL integration tests for emitted raw SQL fragments.
+The CI pipeline runs quality gates and the full test suite across every supported
+Python version: **3.10, 3.11, 3.12, 3.13, and 3.14**. Coverage is generated on
+each Python version and uploaded to Codecov so regressions are visible from the
+README badge and pull requests.
+
+The development environment installs the optional backend test dependencies so
+SQLAlchemy, SQLModel, MongoDB-compatible `mongomock`, and ODM-related tests can
+run when possible.
+
+## Contributing
+
+Paramora is early and contributor-friendly. Good first contributions include:
+
+- improving examples
+- adding backend edge-case tests
+- improving documentation recipes
+- expanding SQLAlchemy / SQLModel coverage
+- improving benchmarks and profiling scripts
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+
+Paramora is released under the MIT License.

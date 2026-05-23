@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from .contracts import QueryContract
 from .emitters.mongo import MongoEmitter, MongoQuery
+from .emitters.odm import MongoOdmEmitter, MongoOdmQuery
 from .emitters.sql import (
     PostgresEmitter,
     SqlEmitter,
@@ -16,6 +17,7 @@ from .emitters.sql import (
     SqlQuery,
     SqlStatement,
 )
+from .emitters.sqlalchemy import SqlAlchemyEmitter, SqlAlchemyQuery, SqlModelEmitter
 from .errors import QueryErrorDetail, QueryErrorDict, QueryValidationError
 from .fields import QueryField, QueryFieldInfo, query_field
 from .query_ast import FilterNode, PaginationNode, QueryAst, SortNode
@@ -26,6 +28,8 @@ __all__ = [
     "FilterNode",
     "MongoEmitter",
     "MongoQuery",
+    "MongoOdmEmitter",
+    "MongoOdmQuery",
     "PaginationNode",
     "PostgresEmitter",
     "Query",
@@ -37,9 +41,12 @@ __all__ = [
     "QueryFieldInfo",
     "QueryValidationError",
     "SortNode",
+    "SqlAlchemyEmitter",
+    "SqlAlchemyQuery",
     "SqlEmitter",
     "SqlQuery",
     "SqlStatement",
     "SqliteEmitter",
+    "SqlModelEmitter",
     "query_field",
 ]
