@@ -9,7 +9,6 @@ on:
       - ".github/workflows/pages.yml"
       - "README.md"
       - "CHANGELOG.md"
-
   workflow_dispatch:
 
 permissions:
