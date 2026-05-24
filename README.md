@@ -1,6 +1,10 @@
 <p align="center">
   <a href="https://ehsanahmadzadeh.github.io/Paramora/">
-    <img src="https://raw.githubusercontent.com/EhsanAhmadzadeh/Paramora/main/docs/assets/paramora-logo.png" alt="Paramora" width="360">
+    <img
+      src="https://raw.githubusercontent.com/EhsanAhmadzadeh/Paramora/main/docs/assets/paramora-logo.png"
+      alt="Paramora"
+      width="360"
+    >
   </a>
 </p>
 
@@ -15,9 +19,10 @@
   <a href="https://github.com/EhsanAhmadzadeh/Paramora/actions/workflows/pages.yml">
     <img src="https://github.com/EhsanAhmadzadeh/Paramora/actions/workflows/pages.yml/badge.svg" alt="Docs">
   </a>
-<a href="https://codecov.io/gh/EhsanAhmadzadeh/Paramora">
-  <img src="https://codecov.io/gh/EhsanAhmadzadeh/Paramora/branch/main/graph/badge.svg" alt="Coverage">
-</a>f="https://pypi.org/project/paramora/">
+  <a href="https://codecov.io/gh/EhsanAhmadzadeh/Paramora">
+    <img src="https://codecov.io/gh/EhsanAhmadzadeh/Paramora/branch/main/graph/badge.svg" alt="Coverage">
+  </a>
+  <a href="https://pypi.org/project/paramora/">
     <img src="https://img.shields.io/pypi/v/paramora?color=%2334D058&label=pypi" alt="PyPI">
   </a>
   <a href="https://pypi.org/project/paramora/">
